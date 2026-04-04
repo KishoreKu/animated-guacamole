@@ -27,7 +27,7 @@ jobs:
 
       - name: 'Build and Push Container'
         run: |
-          gcloud builds submit --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest .
+          gcloud builds submit --suppress-logs --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest .
 
       - name: 'Deploy to Cloud Run'
         run: |
