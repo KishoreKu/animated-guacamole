@@ -13,13 +13,17 @@ app = FastAPI()
 # Allow CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to your frontend URL
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 orchestrator = create_orchestrator()
+
+@app.get("/")
+def root():
+    return {"status": "Ghibli Video Studio API is active"}
 
 @app.get("/health")
 def health():

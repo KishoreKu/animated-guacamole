@@ -1,0 +1,69 @@
+name: Deploy Ghibli Studio
+
+on:
+  push:
+    branches: [ main, master ]
+
+env:
+  PROJECT_ID: ghibli-studio-1775332583
+  REGION: us-central1
+  BACKEND_SERVICE_NAME: ghibli-backend
+  FRONTEND_BUCKET: ghibli-frontend-1775336710
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Build and Push Container'
+        run: |
+          gcloud builds submit --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest .
+
+      - name: 'Deploy to Cloud Run'
+        run: |
+          gcloud run deploy ${{ env.BACKEND_SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest \
+            --region ${{ env.REGION }} \
+            --update-secrets=GOOGLE_API_KEY=GOOGLE_API_KEY:latest \
+            --allow-unauthenticated
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Upload to GCS'
+        run: |
+          gcloud storage cp -r dist/* gs://${{ env.FRONTEND_BUCKET }}/
+          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/index.html --content-type="text/html"
+          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/assets/*.js --content-type="application/javascript"

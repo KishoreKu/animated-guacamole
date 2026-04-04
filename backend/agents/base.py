@@ -1,6 +1,6 @@
 import os
 from typing import List, Any
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from backend.state import GraphState
 from dotenv import load_dotenv
@@ -8,18 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class BaseAgent:
-    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "anthropic/claude-3.5-sonnet"):
+    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "gemini-1.5-pro"):
         self.name = name
         self.persona = persona
-        # Configure for OpenRouter
-        self.llm = ChatOpenAI(
+        # Configure for Google Gemini
+        self.llm = ChatGoogleGenerativeAI(
             model=model_name,
-            openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-            openai_api_base="https://openrouter.ai/api/v1",
-            default_headers={
-                "HTTP-Referer": "https://ghibli-studio.io", # Optional
-                "X-Title": "Ghibli Studio",
-            }
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            temperature=0.7,
         )
         if tools:
             self.llm = self.llm.bind_tools(tools)
