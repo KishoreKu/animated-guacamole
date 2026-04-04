@@ -27,15 +27,16 @@ jobs:
 
       - name: 'Build and Push Container'
         run: |
-          gcloud builds submit --suppress-logs --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest .
+          gcloud builds submit --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:${{ github.sha }} .
 
       - name: 'Deploy to Cloud Run'
-        run: |
-          gcloud run deploy ${{ env.BACKEND_SERVICE_NAME }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:latest \
-            --region ${{ env.REGION }} \
-            --update-secrets=GOOGLE_API_KEY=GOOGLE_API_KEY:latest \
-            --allow-unauthenticated
+        uses: 'google-github-actions/deploy-cloudrun@v2'
+        with:
+          service: ${{ env.BACKEND_SERVICE_NAME }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:${{ github.sha }}
+          region: ${{ env.REGION }}
+          secrets: |
+            GOOGLE_API_KEY=GOOGLE_API_KEY:latest
 
   deploy-frontend:
     runs-on: ubuntu-latest
