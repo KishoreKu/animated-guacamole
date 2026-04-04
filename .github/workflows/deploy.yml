@@ -9,6 +9,7 @@ env:
   REGION: us-central1
   BACKEND_SERVICE_NAME: ghibli-backend
   FRONTEND_BUCKET: ghibli-frontend-1775336710
+  IMAGE_NAME: us-central1-docker.pkg.dev/ghibli-studio-1775332583/ghibli-repo/backend
 
 jobs:
   deploy-backend:
@@ -25,15 +26,20 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
 
-      - name: 'Build and Push Container'
+      - name: 'Set up Docker Auth'
         run: |
-          gcloud builds submit --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:${{ github.sha }} .
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: 'Build and Push Docker Image'
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: 'Deploy to Cloud Run'
         uses: 'google-github-actions/deploy-cloudrun@v2'
         with:
           service: ${{ env.BACKEND_SERVICE_NAME }}
-          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ghibli-repo/backend:${{ github.sha }}
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           region: ${{ env.REGION }}
           secrets: |
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
