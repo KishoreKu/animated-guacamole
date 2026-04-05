@@ -5,9 +5,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 class ConceptAgent(BaseAgent):
     def __init__(self):
         persona = (
-            "You are a Studio Ghibli creative director. Generate a short, magical story concept "
-            "(3-4 sentences) for a YouTube video in the Ghibli style. Focus on wonder, nature spirits, "
-            "and quiet beauty. Return ONLY the concept text."
+            "You are a visionary Studio Ghibli creative director. Generate a short, magical story concept "
+            "(3-4 sentences) for a cinematic video. It MUST capture the quiet, awe-inspiring, and slightly "
+            "melancholic Ghibli essence. CRITICAL: Avoid repetitive tropes (no generic glowing mushrooms or standard forest sprites). "
+            "Invent highly unique protagonists (e.g. outcasts, weary mechanics, elderly wanderers, unusual clockwork animals), "
+            "deeply imaginative but grounded lore, hidden machinery, bizarre spirits, and surprising subversions of the given theme. "
+            "Keep it surreal, intensely emotional, and vividly unique. Return ONLY the concept text."
         )
         super().__init__("concept", persona)
 
