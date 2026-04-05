@@ -476,14 +476,25 @@ function ResultPanel({ result, onReset, parseMetadata }) {
                   <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
                   
                   {visualPromptsList[i] && (
-                    <button onClick={() => {
-                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
-                        const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
-                        navigator.clipboard.writeText(videoPrompt);
-                        alert("Video Prompt Copied!\\n\\n" + videoPrompt);
-                    }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
-                      Copy Video Prompt
-                    </button>
+                    <>
+                      <button onClick={() => {
+                          const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                          const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
+                          navigator.clipboard.writeText(videoPrompt);
+                          alert("Video Prompt Copied!\\n\\n" + videoPrompt);
+                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
+                        Copy Video Prompt
+                      </button>
+                      
+                      <button onClick={() => {
+                          const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                          const bgmPrompt = `Emotional orchestral soundtrack, piano and sweeping strings, Joe Hisaishi and Studio Ghibli style, cinematic background music for an animated movie scene featuring: ${basePrompt}`;
+                          navigator.clipboard.writeText(bgmPrompt);
+                          alert("BGM Prompt Copied!\\n\\n" + bgmPrompt);
+                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(189,147,249,0.2)", color: "#bd93f9", border: "1px solid rgba(189,147,249,0.3)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(189,147,249,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(189,147,249,0.2)"}>
+                        Copy BGM Prompt
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
