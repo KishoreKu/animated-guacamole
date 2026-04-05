@@ -23,7 +23,7 @@ class ProductionAgent(BaseAgent):
         for path in image_paths:
             url = upload_to_gcs(path, BUCKET_NAME)
             image_urls.append(url)
-            os.remove(path) # Cleanup local
+            # Do NOT cleanup local yet, needed for video stitching
         
         # 3. Generate Audio
         scenes = state["script"].split("SCENE")
@@ -39,6 +39,9 @@ class ProductionAgent(BaseAgent):
         
         # Cleanup
         for ap in audio_paths: os.remove(ap)
+        for ip in image_paths:
+            if os.path.exists(ip):
+                os.remove(ip)
         os.remove(output_file)
         
         return {

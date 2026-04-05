@@ -4,6 +4,7 @@ from backend.agents.concept_agent import ConceptAgent
 from backend.agents.script_agent import ScriptAgent
 from backend.agents.visual_agent import VisualAgent
 from backend.agents.metadata_agent import MetadataAgent
+from backend.agents.production_agent import ProductionAgent
 
 def create_orchestrator():
     # Initialize agents
@@ -11,6 +12,7 @@ def create_orchestrator():
     script_agent = ScriptAgent()
     visual_agent = VisualAgent()
     metadata_agent = MetadataAgent()
+    production_agent = ProductionAgent()
 
     # Create the graph
     workflow = StateGraph(GraphState)
@@ -20,6 +22,7 @@ def create_orchestrator():
     workflow.add_node("script", script_agent.execute)
     workflow.add_node("visuals", visual_agent.execute)
     workflow.add_node("metadata", metadata_agent.execute)
+    workflow.add_node("production", production_agent.execute)
 
     # Set entry point
     workflow.set_entry_point("concept")
@@ -28,7 +31,8 @@ def create_orchestrator():
     workflow.add_edge("concept", "script")
     workflow.add_edge("script", "visuals")
     workflow.add_edge("visuals", "metadata")
-    workflow.add_edge("metadata", END)
+    workflow.add_edge("metadata", "production")
+    workflow.add_edge("production", END)
 
     return workflow.compile()
 
