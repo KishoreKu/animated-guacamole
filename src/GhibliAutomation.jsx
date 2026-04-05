@@ -148,7 +148,7 @@ export default function GhibliAutomation() {
     try {
       addLog(`🎬 Pipeline started for topic: '${topic}'`);
       
-      const response = await fetch("https://ghibli-backend-748780382992.us-central1.run.app/generate", {
+      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
