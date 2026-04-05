@@ -41,6 +41,9 @@ jobs:
           service: ${{ env.BACKEND_SERVICE_NAME }}
           image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           region: ${{ env.REGION }}
+          flags: |
+            --memory=2Gi
+            --cpu=2
           secrets: |
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
 
