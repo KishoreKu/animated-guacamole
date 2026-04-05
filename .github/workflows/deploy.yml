@@ -74,6 +74,16 @@ jobs:
 
       - name: 'Upload to GCS'
         run: |
+          # Clear old files to prevent stale assets
+          gcloud storage rm gs://${{ env.FRONTEND_BUCKET }}/** || true
+          
+          # Upload new build
           gcloud storage cp -r dist/* gs://${{ env.FRONTEND_BUCKET }}/
-          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/index.html --content-type="text/html"
-          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/assets/*.js --content-type="application/javascript"
+          
+          # Set correct content types and disable caching for index.html
+          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/index.html \
+            --content-type="text/html" \
+            --cache-control="no-store, max-age=0"
+            
+          gcloud storage objects update gs://${{ env.FRONTEND_BUCKET }}/assets/*.js \
+            --content-type="application/javascript"
