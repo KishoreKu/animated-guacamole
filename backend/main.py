@@ -47,27 +47,13 @@ async def generate(request: Request):
     async def event_stream():
         try:
             # LangGraph streaming
-            # Note: LangGraph's .astream returns an async iterator
-            stream_iter = orchestrator.astream(initial_state)
-            
-            while True:
-                try:
-                    task = asyncio.create_task(stream_iter.__anext__())
-                    while not task.done():
-                        # Wait for up to 10 seconds for the task to finish
-                        done, pending = await asyncio.wait([task], timeout=10.0)
-                        if not done:
-                            # Send an SSE comment to keep the connection alive
-                            yield ": ping\n\n"
-                    
-                    output = task.result()
-                    yield f"data: {json.dumps(output)}\n\n"
-                    await asyncio.sleep(0.1) # Small delay for smoother UI
-                except StopAsyncIteration:
-                    break
+            async for output in orchestrator.astream(initial_state):
+                yield f"data: {json.dumps(output)}\n\n"
+                await asyncio.sleep(0.1) # Small delay for smoother UI
             
             yield f"data: {json.dumps({'status': 'done'})}\n\n"
         except Exception as e:
+            print(f"CRITICAL STREAM ERROR: {repr(e)}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
