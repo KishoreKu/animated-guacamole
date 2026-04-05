@@ -7,8 +7,9 @@ pydantic
 python-dotenv
 langchain-core
 moviepy
-google-cloud-text-to-speech
+google-cloud-texttospeech
 google-cloud-storage
 google-cloud-aiplatform
 protobuf
 pillow
+ffmpeg-python
