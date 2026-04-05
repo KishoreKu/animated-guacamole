@@ -22,8 +22,8 @@ def generate_images(prompts: List[str]) -> List[str]:
         "imagegeneration@005",
         "pollinations"
     ]
-    
     image_paths = []
+    session_id = str(int(time.time()))
     
     for i, prompt in enumerate(prompts):
         print(f"🎨 Painting scene {i+1}...")
@@ -32,7 +32,8 @@ def generate_images(prompts: List[str]) -> List[str]:
         for model_id in fallback_models:
             print(f"Trying model: {model_id}")
             try:
-                path = f"scene_{i}.png"
+                path = f"scene_{session_id}_{i}.png"
+                
                 
                 if model_id == "pollinations":
                     import requests
@@ -92,6 +93,7 @@ def generate_audio(script_scenes: List[str]) -> List[str]:
     """
     client = texttospeech.TextToSpeechClient()
     audio_paths = []
+    session_id = str(int(time.time()))
     
     for i, scene in enumerate(script_scenes):
         narration = scene.split("Narration:")[-1].strip() if "Narration:" in scene else scene
@@ -104,7 +106,7 @@ def generate_audio(script_scenes: List[str]) -> List[str]:
         
         response = client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
         
-        path = f"audio_{i}.mp3"
+        path = f"audio_{session_id}_{i}.mp3"
         with open(path, "wb") as out:
             out.write(response.audio_content)
         audio_paths.append(path)
