@@ -14,7 +14,7 @@ class VisualAgent(BaseAgent):
 
     def execute(self, state: GraphState) -> GraphState:
         num_scenes = state.get('num_scenes', 5)
-        msg = f"Generate exactly {num_scenes} Ghibli-style image prompts for each scene in this script:\n{state['script']}"
+        msg = f"Generate exactly 1 Ghibli-style image prompt per scene (Total of {num_scenes} prompts) based on this script:\n{state['script']}"
         response = self.llm.invoke([
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
