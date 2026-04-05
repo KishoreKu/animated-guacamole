@@ -18,16 +18,28 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     for i, prompt in enumerate(prompts):
         print(f"🎨 Painting scene {i+1} with Imagen 3...")
-        response = model.generate_images(
-            prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
-            number_of_images=1,
-            language="en",
-            aspect_ratio="16:9"
-        )
         
-        path = f"scene_{i}.png"
-        response[0].save(location=path, include_generation_parameters=False)
-        image_paths.append(path)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_images(
+                    prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
+                    number_of_images=1,
+                    language="en",
+                    aspect_ratio="16:9"
+                )
+                path = f"scene_{i}.png"
+                response[0].save(location=path, include_generation_parameters=False)
+                image_paths.append(path)
+                break
+            except Exception as e:
+                if "429" in str(e) and attempt < max_retries - 1:
+                    print(f"⚠️ Rate limit hit. Retrying in {2 ** attempt * 5} seconds... (Attempt {attempt+1}/{max_retries})")
+                    time.sleep(2 ** attempt * 5)
+                else:
+                    raise e
+                    
+        time.sleep(2) # Prevent hammering the API too fast
         
     return image_paths
 
