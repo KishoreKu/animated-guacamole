@@ -39,12 +39,14 @@ def generate_images(prompts: List[str]) -> List[str]:
                     aspect_ratio="16:9"
                 )
                 
-                # Some older models or safety filters return empty arrays instead of throwing explicit errors!
-                if not response or len(response) == 0:
+                # Convert to list since some ImageGenerationResponse versions don't support len()
+                images = list(response.images) if hasattr(response, 'images') else list(response)
+                
+                if not images or len(images) == 0:
                     raise IndexError(f"Model {model_id} returned an empty response. Likely an aspect ratio or safety block.")
                     
                 path = f"scene_{i}.png"
-                response[0].save(location=path, include_generation_parameters=False)
+                images[0].save(location=path, include_generation_parameters=False)
                 image_paths.append(path)
                 success = True
                 break
