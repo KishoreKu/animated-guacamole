@@ -63,11 +63,14 @@ async def generate_video(prompt: str) -> str:
     """
     print(f"\n🎬 Starting local pipeline for: '{prompt}'")
     orchestrator = create_orchestrator()
-    initial_state = GraphState(
-        topic=prompt,
-        concept="", script="", visuals="", metadata="",
-        image_urls=[], video_url="", logs=[], status="pending", error=""
-    )
+    initial_state = {
+        "topic": prompt,
+        "num_scenes": 5,
+        "generate_video": True,
+        "concept": "", "script": "", "visuals": "", "metadata": "",
+        "image_urls": [], "audio_urls": [], "video_url": "", 
+        "logs": [], "messages": [], "status": "pending"
+    }
     
     final_video_url = None
     stream_iter = orchestrator.astream(initial_state)

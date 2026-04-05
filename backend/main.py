@@ -1,9 +1,12 @@
 import json
 import asyncio
-from fastapi import FastAPI, Request
+from typing import Optional
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.orchestrator import create_orchestrator
+from backend.database import get_generations, save_generation
+from backend.tasks import perform_reddit_batch
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,6 +24,8 @@ app.add_middleware(
 
 orchestrator = create_orchestrator()
 
+# --- NEW ENDPOINTS ---
+
 @app.get("/")
 def root():
     return {"status": "Ghibli Video Studio API is active"}
@@ -28,6 +33,34 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/generations")
+def fetch_generations(limit: int = 20):
+    """
+    Fetches past generation history.
+    """
+    data = get_generations(limit=limit)
+    return {"data": data}
+
+@app.post("/cron/reddit")
+async def trigger_reddit_batch(request: Request, background_tasks: BackgroundTasks):
+    """
+    Cron-compatible endpoint for Reddit batch processing.
+    Security: Check for X-CRON-TOKEN to prevent public trigger.
+    """
+    # Simple security token check
+    cron_token = request.headers.get("X-CRON-TOKEN")
+    expected_token = os.getenv("CRON_SECRET_TOKEN", "ghibli-dev-token")
+    
+    if cron_token != expected_token:
+        raise HTTPException(status_code=401, detail="Unauthorized cron trigger")
+    
+    # Run Reddit batch in the background to avoid timing out the HTTP response
+    background_tasks.add_task(perform_reddit_batch)
+    
+    return {"status": "started", "message": "Reddit automation batch is running in the background."}
+
+# --- GENERATION LOGIC ---
 
 @app.post("/generate")
 async def generate(request: Request):
@@ -50,11 +83,28 @@ async def generate(request: Request):
 
     async def event_stream():
         try:
+            accumulated_state = initial_state.copy()
             # LangGraph streaming
             async for output in orchestrator.astream(initial_state):
+                for node_name, state_update in output.items():
+                    accumulated_state.update(state_update)
+                
                 yield f"data: {json.dumps(output)}\n\n"
-                await asyncio.sleep(0.1) # Small delay for smoother UI
+                await asyncio.sleep(0.1)
             
+            # --- PERSISTENCE ---
+            # Save manual generation to Supabase once complete or if it has images
+            if accumulated_state.get("image_urls"):
+                db_data = {
+                    "topic": accumulated_state.get("topic"),
+                    "concept": accumulated_state.get("concept", ""),
+                    "video_url": accumulated_state.get("video_url", ""),
+                    "image_urls": accumulated_state.get("image_urls", []),
+                    "metadata": {"title": accumulated_state.get("metadata", ""), "tags": []},
+                    "source": "manual"
+                }
+                save_generation(db_data)
+
             yield f"data: {json.dumps({'status': 'done'})}\n\n"
         except Exception as e:
             print(f"CRITICAL STREAM ERROR: {repr(e)}")
@@ -64,4 +114,5 @@ async def generate(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
     uvicorn.run(app, host="0.0.0.0", port=8000)

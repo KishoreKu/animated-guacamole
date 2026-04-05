@@ -108,6 +108,22 @@ export default function GhibliAutomation() {
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
   const [finalResult, setFinalResult] = useState(null);
+  const [galleryData, setGalleryData] = useState([]);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+
+  const fetchGallery = async () => {
+    setLoadingGallery(true);
+    setPhase("gallery");
+    try {
+      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generations");
+      const data = await response.json();
+      setGalleryData(data.data || []);
+    } catch (e) {
+      console.error("Failed to fetch gallery", e);
+    } finally {
+      setLoadingGallery(false);
+    }
+  };
   const [phase, setPhase] = useState("input");
   const [logLines, setLogLines] = useState([]);
   const logRef = useRef(null);
@@ -349,17 +365,31 @@ export default function GhibliAutomation() {
               {AGENTS.map(a => <AgentCard key={a.id} agent={a} status="idle" output={null} />)}
             </div>
 
-            <button className="run-btn" onClick={runPipeline} disabled={!theme && !customTheme}
-              style={{
-                width: "100%", padding: "20px", borderRadius: 20,
-                border: "none", color: "#000", fontSize: 18, fontWeight: 700,
-                cursor: (theme || customTheme) ? "pointer" : "not-allowed",
-                fontFamily: "'Outfit', sans-serif", letterSpacing: 1,
-                transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                opacity: (theme || customTheme) ? 1 : 0.5,
-              }}>
-              Launch Mission
-            </button>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button className="run-btn" onClick={runPipeline} disabled={!theme && !customTheme}
+                style={{
+                  flex: 2, padding: "20px", borderRadius: 20,
+                  border: "none", color: "#000", fontSize: 18, fontWeight: 700,
+                  cursor: (theme || customTheme) ? "pointer" : "not-allowed",
+                  fontFamily: "'Outfit', sans-serif", letterSpacing: 1,
+                  transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                  opacity: (theme || customTheme) ? 1 : 0.5,
+                }}>
+                Launch Mission
+              </button>
+              <button onClick={fetchGallery}
+                style={{
+                  flex: 1, padding: "20px", borderRadius: 20,
+                  background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#fff", fontSize: 16, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Outfit', sans-serif",
+                  transition: "all 0.3s",
+                }}
+                onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
+                onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.1)"}>
+                Explore Gallery
+              </button>
+            </div>
             <style>{`@keyframes fadeInUp { from { opacity:0; transform: translateY(20px) } to { opacity:1; transform: translateY(0) } }`}</style>
           </div>
         )}
@@ -402,7 +432,62 @@ export default function GhibliAutomation() {
         {phase === "result" && finalResult && (
           <ResultPanel result={finalResult} onReset={reset} parseMetadata={parseMetadata} />
         )}
+
+        {/* GALLERY PHASE */}
+        {phase === "gallery" && (
+          <GalleryPanel data={galleryData} loading={loadingGallery} onReset={reset} />
+        )}
       </div>
+    </div>
+  );
+}
+
+function GalleryPanel({ data, loading, onReset }) {
+  return (
+    <div style={{ animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 30 }}>
+        <div style={{ fontSize: "2rem", color: "#fff", fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>
+          Public Archive
+        </div>
+        <button onClick={onReset} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", padding: "10px 20px", borderRadius: 12, cursor: "pointer", fontSize: 14 }}>
+          ← Back to Studio
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "100px 0", color: "rgba(255,255,255,0.5)" }}>
+          Loading the vault...
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
+          {data.map((item, idx) => (
+            <div key={idx} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 20, display: "flex", flexDirection: "column" }}>
+              <div style={{ position: "relative", marginBottom: 16 }}>
+                <img src={item.image_urls?.[0]} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 16 }} />
+                <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: 8, fontSize: 10, color: "#fff", backdropFilter: "blur(4px)", textTransform: "uppercase", letterSpacing: 1 }}>
+                  {item.source === "reddit" ? "🤖 Automated" : "👤 Manual"}
+                </div>
+              </div>
+              <div style={{ fontSize: 18, color: "#fff", fontWeight: 600, marginBottom: 8, fontFamily: "'Outfit', sans-serif" }}>
+                {item.topic}
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16, lineHeight: 1.4, flex: 1 }}>
+                {item.concept.slice(0, 100)}...
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                {item.video_url && (
+                  <a href={item.video_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", background: "linear-gradient(135deg, #4ab8ff, #4aff8a)", color: "#000", padding: "10px", borderRadius: 12, textDecoration: "none", fontSize: 14, fontWeight: 600 }}>
+                    Watch Video
+                  </a>
+                )}
+                <button onClick={() => alert("Detailed view coming soon!")} style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 12, fontSize: 14 }}>
+                  View Scenes
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
