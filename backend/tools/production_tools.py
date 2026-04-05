@@ -9,19 +9,29 @@ from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
-    Generates images using Google Imagen 3 via Vertex AI.
+    Generates images using Google Imagen via Vertex AI, with fallbacks.
     Returns a list of local paths to the generated images.
     """
     vertexai.init(project="ghibli-studio-1775332583", location="us-central1")
-    model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
+    
+    # Ordered list of models to try if quota is zero for the newer ones
+    fallback_models = [
+        "imagen-3.0-generate-001",
+        "imagen-3.0-fast-generate-001",
+        "imagegeneration@006",
+        "imagegeneration@005"
+    ]
+    
     image_paths = []
     
     for i, prompt in enumerate(prompts):
-        print(f"🎨 Painting scene {i+1} with Imagen 3...")
+        print(f"🎨 Painting scene {i+1}...")
+        success = False
         
-        max_retries = 3
-        for attempt in range(max_retries):
+        for model_id in fallback_models:
+            print(f"Trying model: {model_id}")
             try:
+                model = ImageGenerationModel.from_pretrained(model_id)
                 response = model.generate_images(
                     prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
                     number_of_images=1,
@@ -31,15 +41,19 @@ def generate_images(prompts: List[str]) -> List[str]:
                 path = f"scene_{i}.png"
                 response[0].save(location=path, include_generation_parameters=False)
                 image_paths.append(path)
+                success = True
                 break
             except Exception as e:
-                if "429" in str(e) and attempt < max_retries - 1:
-                    print(f"⚠️ Rate limit hit. Retrying in {2 ** attempt * 5} seconds... (Attempt {attempt+1}/{max_retries})")
-                    time.sleep(2 ** attempt * 5)
+                if "429" in str(e) or "Quota exceeded" in str(e):
+                    print(f"⚠️ {model_id} Quota exceeded. Falling back...")
+                    continue
                 else:
                     raise e
                     
-        time.sleep(2) # Prevent hammering the API too fast
+        if not success:
+            raise Exception("All Vertex AI Imagen models failed due to Quota Limits. Please request quota increases in GCP.")
+            
+        time.sleep(1) # Prevent hammering the API too fast between prompts
         
     return image_paths
 
