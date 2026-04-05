@@ -48,11 +48,20 @@ async def generate(request: Request):
         try:
             # LangGraph streaming
             # Note: LangGraph's .astream returns an async iterator
-            async for output in orchestrator.astream(initial_state):
-                # output is a dict where keys are node names and values are the state update
-                # We want to send the partial state or a custom message
-                yield f"data: {json.dumps(output)}\n\n"
-                await asyncio.sleep(0.1) # Small delay for smoother UI
+            stream_iter = orchestrator.astream(initial_state)
+            while True:
+                try:
+                    # Wait for up to 10 seconds for the next node output
+                    output = await asyncio.wait_for(stream_iter.__anext__(), timeout=10.0)
+                    # output is a dict where keys are node names and values are the state update
+                    yield f"data: {json.dumps(output)}\n\n"
+                    await asyncio.sleep(0.1) # Small delay for smoother UI
+                except asyncio.TimeoutError:
+                    # Cloud Run load balancer drops connections idle for >15s
+                    # Send an SSE comment to keep the connection alive
+                    yield ": ping\n\n"
+                except StopAsyncIteration:
+                    break
             
             yield f"data: {json.dumps({'status': 'done'})}\n\n"
         except Exception as e:
