@@ -148,6 +148,7 @@ export default function GhibliAutomation() {
 
     try {
       addLog(`🎬 Pipeline started for topic: '${topic}'`);
+      let accumulatedState = { topic, concept: "", script: "", visuals: "", metadata: "", image_urls: [], audio_urls: [], video_url: "" };
       
       const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generate", {
         method: "POST",
@@ -171,50 +172,44 @@ export default function GhibliAutomation() {
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.replace("data: ", ""));
-            
-            if (data.status === "done") {
-               // The final state will be in the last update before "done"
-               // Or we can just wait for it.
-            } else if (data.error) {
-              throw new Error(data.error);
-            } else {
-              // LangGraph sends updates per node
-              // data = { "node_name": { ...updated_state } }
-              const nodeName = Object.keys(data)[0];
-              const state = data[nodeName];
+            try {
+              const data = JSON.parse(line.replace("data: ", ""));
+              console.log("📥 Received update:", data);
+              
+              if (data.status === "done") {
+                 // Finalizing...
+              } else if (data.error) {
+                throw new Error(data.error);
+              } else {
+                const nodeName = Object.keys(data)[0];
+                const delta = data[nodeName];
 
-              if (nodeName && state) {
-                setStatus(nodeName, "done");
-                if (state[nodeName]) {
-                  setOutput(nodeName, state[nodeName]);
-                }
-                if (state.logs && state.logs.length > 0) {
-                  // Only add the last log if it's new
-                  const lastLog = state.logs[state.logs.length - 1];
-                  addLog(lastLog);
-                }
+                if (nodeName && delta) {
+                  // MERGE DELTA INTO ACCUMULATED STATE
+                  accumulatedState = { ...accumulatedState, ...delta };
+                  
+                  setStatus(nodeName, "done");
+                  if (delta[nodeName]) {
+                    setOutput(nodeName, delta[nodeName]);
+                  }
+                  
+                  if (delta.logs && delta.logs.length > 0) {
+                    delta.logs.forEach(l => addLog(l));
+                  }
 
-                // If it's the last agent, set final result
-                if (nodeName === "production") {
-                  setFinalResult({
-                    topic,
-                    concept: state.concept,
-                    script: state.script,
-                    visuals: state.visuals,
-                    metadata: state.metadata,
-                    image_urls: state.image_urls,
-                    audio_urls: state.audio_urls,
-                    video_url: state.video_url
-                  });
-                } else {
-                  // Set next agent to running
-                  const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
-                  if (nextAgentMap[nodeName]) {
-                    setStatus(nextAgentMap[nodeName], "running");
+                  // If it's the last agent, set final result
+                  if (nodeName === "production") {
+                    setFinalResult({ ...accumulatedState });
+                  } else {
+                    const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
+                    if (nextAgentMap[nodeName]) {
+                      setStatus(nextAgentMap[nodeName], "running");
+                    }
                   }
                 }
               }
+            } catch (jsonErr) {
+              console.warn("Failed to parse JSON line:", line, jsonErr);
             }
           }
         }

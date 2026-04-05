@@ -18,6 +18,4 @@ class ScriptAgent(BaseAgent):
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
         ])
-        state["script"] = response.content
-        state["logs"].append(f"✿ Script complete — 5 scenes ready.")
-        return state
+        return {"script": response.content, "logs": [f"✿ Script complete — 5 scenes ready."]}

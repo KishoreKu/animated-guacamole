@@ -1,3 +1,4 @@
+import operator
 from typing import Annotated, TypedDict, List
 from langgraph.graph.message import add_messages
 
@@ -10,6 +11,9 @@ class GraphState(TypedDict):
     script: str
     visuals: str
     metadata: str
-    logs: List[str]
+    image_urls: List[str]
+    audio_urls: List[str]
+    video_url: str
+    logs: Annotated[List[str], operator.add]
     messages: Annotated[List, add_messages]
     status: str # idle | running | done | error

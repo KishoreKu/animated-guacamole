@@ -10,7 +10,6 @@ class ProductionAgent(BaseAgent):
         super().__init__("production", persona)
 
     def execute(self, state: GraphState) -> GraphState:
-        state["logs"].append("🎬 Production phase started. Preparing assets...")
         BUCKET_NAME = "ghibli-assets-1775332583"
         
         # 1. Parse prompts from state["visuals"]
@@ -25,14 +24,11 @@ class ProductionAgent(BaseAgent):
             url = upload_to_gcs(path, BUCKET_NAME)
             image_urls.append(url)
             os.remove(path) # Cleanup local
-        state["image_urls"] = image_urls
-        state["logs"].append(f"🖼️ {len(image_urls)} scene frames painted and stored.")
         
         # 3. Generate Audio
         scenes = state["script"].split("SCENE")
         scenes = ["SCENE" + s for s in scenes if s.strip()]
-        audio_paths = generate_audio(scenes[:len(image_urls)])
-        state["logs"].append(f"🎙️ Narration recorded for all scenes.")
+        audio_paths = generate_audio(scenes[:len(image_paths)])
         
         # 4. Stitch Video
         output_file = f"video_{int(time.time())}.mp4"
@@ -40,11 +36,13 @@ class ProductionAgent(BaseAgent):
         
         # 5. Upload Final Video
         video_url = upload_to_gcs(output_file, BUCKET_NAME)
-        state["video_url"] = video_url
         
         # Cleanup
         for ap in audio_paths: os.remove(ap)
         os.remove(output_file)
         
-        state["logs"].append(f"✅ Final video ready for screening!")
-        return state
+        return {
+            "image_urls": image_urls, 
+            "video_url": video_url, 
+            "logs": ["🎬 Production phase complete.", "✅ Final video ready for screening!"]
+        }

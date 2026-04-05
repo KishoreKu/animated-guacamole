@@ -17,6 +17,4 @@ class ConceptAgent(BaseAgent):
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
         ])
-        state["concept"] = response.content
-        state["logs"].append(f"✦ Concept crafted by {self.name} agent.")
-        return state
+        return {"concept": response.content, "logs": [f"✦ Concept crafted by {self.name} agent."]}

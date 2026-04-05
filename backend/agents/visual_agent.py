@@ -18,6 +18,4 @@ class VisualAgent(BaseAgent):
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
         ])
-        state["visuals"] = response.content
-        state["logs"].append(f"◈ 5 scene prompts painted.")
-        return state
+        return {"visuals": response.content, "logs": [f"◈ 5 scene prompts painted."]}

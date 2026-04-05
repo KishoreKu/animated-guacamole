@@ -25,10 +25,4 @@ class MetadataAgent(BaseAgent):
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
         ])
-        
-        # In a real tool-calling agent, we would parse tool_calls here.
-        # For this refactor, we'll keep it simple and just use the LLM's final content.
-        # The fact that tools are bound and persona updated is enough for "tool-calling concepts".
-        state["metadata"] = response.content
-        state["logs"].append(f"❋ YouTube metadata ready.")
-        return state
+        return {"metadata": response.content, "logs": ["❋ YouTube metadata ready."]}
