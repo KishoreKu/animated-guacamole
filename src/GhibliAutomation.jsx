@@ -410,6 +410,11 @@ export default function GhibliAutomation() {
 function ResultPanel({ result, onReset, parseMetadata }) {
   const [tab, setTab] = useState("images");
   const meta = parseMetadata(result.metadata);
+  
+  const visualPromptsList = result.visuals 
+    ? result.visuals.split('\n').filter(line => line.trim() && (line.trim().charAt(0) >= '0' && line.trim().charAt(0) <= '9' || line.trim().startsWith('-')))
+    : [];
+
   const tabs = [
     { id: "images", label: "🖼️ Scenes" },
     { id: "metadata", label: "❋ YouTube Meta" },
@@ -464,9 +469,23 @@ function ResultPanel({ result, onReset, parseMetadata }) {
         {tab === "images" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
             {result.image_urls && result.image_urls.length > 0 ? result.image_urls.map((url, i) => (
-              <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)" }}>
+              <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
                 <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
-                <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image {i+1}</a>
+                
+                <div style={{ marginTop: "auto" }}>
+                  <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
+                  
+                  {visualPromptsList[i] && (
+                    <button onClick={() => {
+                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                        const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
+                        navigator.clipboard.writeText(videoPrompt);
+                        alert("Video Prompt Copied!\\n\\n" + videoPrompt);
+                    }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
+                      Copy Video Prompt
+                    </button>
+                  )}
+                </div>
               </div>
             )) : (
               <div style={{ gridColumn: "1 / -1", padding: "80px 0", textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif" }}>Images not available.</div>
