@@ -47,6 +47,11 @@ jobs:
             --timeout=15m
           secrets: |
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
+            SUPABASE_URL=SUPABASE_URL:latest
+            SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest
+            REDDIT_CLIENT_ID=REDDIT_CLIENT_ID:latest
+            REDDIT_CLIENT_SECRET=REDDIT_CLIENT_SECRET:latest
+            CRON_SECRET_TOKEN=CRON_SECRET_TOKEN:latest
 
   deploy-frontend:
     runs-on: ubuntu-latest
