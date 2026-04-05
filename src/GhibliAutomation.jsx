@@ -191,6 +191,9 @@ export default function GhibliAutomation() {
 
       // Important: Verify the pipeline actually finished
       // We check if video_url exists to confirm the production node completed
+      if (accumulatedState.video_url === "ERROR") {
+         throw new Error("Production Agent failed to render the video. Check the logs above for API issues.");
+      }
       const isComplete = Boolean(accumulatedState.video_url);
 
       if (isComplete) {
