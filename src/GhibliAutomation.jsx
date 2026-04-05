@@ -120,7 +120,7 @@ export default function GhibliAutomation() {
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [running, setRunning] = useState(false);
-  const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle" });
+  const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
   const [finalResult, setFinalResult] = useState(null);
   const [phase, setPhase] = useState("input"); // input | pipeline | result
@@ -144,7 +144,7 @@ export default function GhibliAutomation() {
     setLogLines([]);
     setFinalResult(null);
     setAgentOutputs({});
-    setAgentStatuses({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle" });
+    setAgentStatuses({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
 
     try {
       addLog(`🎬 Pipeline started for topic: '${topic}'`);
@@ -236,7 +236,7 @@ export default function GhibliAutomation() {
     setPhase("input");
     setFinalResult(null);
     setAgentOutputs({});
-    setAgentStatuses({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle" });
+    setAgentStatuses({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
     setLogLines([]);
     setCustomTheme("");
     setTheme("");
