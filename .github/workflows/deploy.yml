@@ -44,6 +44,7 @@ jobs:
           flags: |
             --memory=2Gi
             --cpu=2
+            --timeout=15m
           secrets: |
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
 
