@@ -5,6 +5,7 @@ const AGENTS = [
   { id: "script", icon: "✿", label: "Script Agent", desc: "Writes narration & scene descriptions" },
   { id: "visuals", icon: "◈", label: "Visual Agent", desc: "Creates Ghibli-style image prompts" },
   { id: "metadata", icon: "❋", label: "Metadata Agent", desc: "SEO title, description & tags" },
+  { id: "production", icon: "🎬", label: "Production Agent", desc: "Generates assets and renders MP4" },
 ];
 
 const THEMES = ["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain Spirit", "Abandoned Station", "Rainy Rooftop"];
@@ -195,17 +196,20 @@ export default function GhibliAutomation() {
                 }
 
                 // If it's the last agent, set final result
-                if (nodeName === "metadata") {
+                if (nodeName === "production") {
                   setFinalResult({
                     topic,
                     concept: state.concept,
                     script: state.script,
                     visuals: state.visuals,
-                    metadata: state.metadata
+                    metadata: state.metadata,
+                    image_urls: state.image_urls,
+                    audio_urls: state.audio_urls,
+                    video_url: state.video_url
                   });
                 } else {
                   // Set next agent to running
-                  const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata" };
+                  const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
                   if (nextAgentMap[nodeName]) {
                     setStatus(nextAgentMap[nodeName], "running");
                   }
@@ -381,6 +385,7 @@ function ResultPanel({ result, onReset, parseMetadata }) {
     { id: "script", label: "✿ Script" },
     { id: "visuals", label: "◈ Visuals" },
     { id: "metadata", label: "❋ YouTube" },
+    { id: "video", label: "🎬 Video" },
   ];
 
   return (
@@ -428,6 +433,21 @@ function ResultPanel({ result, onReset, parseMetadata }) {
         borderRadius: 16, padding: 24, minHeight: 280, backdropFilter: "blur(8px)",
         marginBottom: 20,
       }}>
+        {tab === "video" && (
+          <div style={{ textAlign: "center" }}>
+            {result.video_url ? (
+              <video 
+                controls 
+                style={{ width: "100%", borderRadius: 12, border: "1px solid #2a6a3a" }}
+                src={result.video_url.startsWith('http') ? result.video_url : `https://ghibli-backend-bskf4s232a-uc.a.run.app/${result.video_url}`}
+              />
+            ) : (
+              <div style={{ padding: "80px 0", color: "#6a9a7a", fontStyle: "italic" }}>
+                🎞️ Production assets are being stitched together...
+              </div>
+            )}
+          </div>
+        )}
         {tab === "script" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "#b8e8b8", fontSize: 13, lineHeight: 1.8, margin: 0, fontFamily: "'Crimson Text', serif" }}>
             {result.script}
