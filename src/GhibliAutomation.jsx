@@ -103,7 +103,7 @@ export default function GhibliAutomation() {
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
-  const [generateVideo, setGenerateVideo] = useState(true);
+  const [generateVideo, setGenerateVideo] = useState(false);
   const [running, setRunning] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
@@ -329,30 +329,19 @@ export default function GhibliAutomation() {
                 onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
               />
               
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                <div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-                    Number of Scenes
-                  </div>
-                  <input 
-                    type="number" min="1"
-                    value={numScenes} 
-                    onChange={e => setNumScenes(parseInt(e.target.value) || 5)} 
-                    style={{ 
-                      width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
-                      borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none" 
-                    }} 
-                  />
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
+                  Number of Scenes
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-                    Render Video
-                  </div>
-                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer", height: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "12px 20px" }}>
-                    <input type="checkbox" checked={generateVideo} onChange={e => setGenerateVideo(e.target.checked)} style={{ width: 18, height: 18, marginRight: 10, accentColor: "#4aff8a" }} />
-                    <span style={{ color: "#fff", fontSize: 15, fontFamily: "'Inter', sans-serif" }}>Create MP4 (slower)</span>
-                  </label>
-                </div>
+                <input 
+                  type="number" min="1"
+                  value={numScenes} 
+                  onChange={e => setNumScenes(parseInt(e.target.value) || 5)} 
+                  style={{ 
+                    width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
+                    borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none" 
+                  }} 
+                />
               </div>
             </div>
 
@@ -419,10 +408,9 @@ export default function GhibliAutomation() {
 }
 
 function ResultPanel({ result, onReset, parseMetadata }) {
-  const [tab, setTab] = useState("video");
+  const [tab, setTab] = useState("images");
   const meta = parseMetadata(result.metadata);
   const tabs = [
-    { id: "video", label: "🎬 Showcase Video" },
     { id: "images", label: "🖼️ Scenes" },
     { id: "metadata", label: "❋ YouTube Meta" },
     { id: "visuals", label: "◈ Prompts" },
@@ -473,21 +461,6 @@ function ResultPanel({ result, onReset, parseMetadata }) {
         border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 30, minHeight: 350,
         marginBottom: 30, boxShadow: "inset 0 4px 20px rgba(0,0,0,0.4)",
       }}>
-        {tab === "video" && (
-          <div style={{ textAlign: "center" }}>
-            {result.video_url ? (
-              <video 
-                controls 
-                style={{ width: "100%", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
-                src={result.video_url.startsWith('http') ? result.video_url : `https://ghibli-backend-bskf4s232a-uc.a.run.app/${result.video_url}`}
-              />
-            ) : (
-              <div style={{ padding: "100px 0", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 16 }}>
-                🎞️ Video file not available from the backend response.
-              </div>
-            )}
-          </div>
-        )}
         {tab === "images" && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
             {result.image_urls && result.image_urls.length > 0 ? result.image_urls.map((url, i) => (
