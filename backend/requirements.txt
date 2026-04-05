@@ -10,3 +10,5 @@ moviepy
 google-cloud-text-to-speech
 google-cloud-storage
 google-cloud-aiplatform
+protobuf
+pillow
