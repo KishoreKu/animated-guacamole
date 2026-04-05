@@ -102,6 +102,8 @@ const AgentCard = ({ agent, status, output }) => {
 export default function GhibliAutomation() {
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
+  const [numScenes, setNumScenes] = useState(5);
+  const [generateVideo, setGenerateVideo] = useState(true);
   const [running, setRunning] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
@@ -136,7 +138,7 @@ export default function GhibliAutomation() {
       const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, numScenes, generateVideo }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -190,17 +192,26 @@ export default function GhibliAutomation() {
       }
 
       // Important: Verify the pipeline actually finished
-      // We check if video_url exists to confirm the production node completed
+      // If video generation was skipped, we just check if it returned a successful status without ERROR.
+      // If video generation was checked, we check if video_url exists to confirm the production node completed
       if (accumulatedState.video_url === "ERROR") {
          throw new Error("Production Agent failed to render the video. Check the logs above for API issues.");
       }
-      const isComplete = Boolean(accumulatedState.video_url);
+      
+      const isComplete = !generateVideo || Boolean(accumulatedState.video_url);
 
       if (isComplete) {
          setFinalResult({ ...accumulatedState });
          addLog("🎬 Pipeline complete! Your Ghibli video is ready.");
          await sleep(1500);
          setPhase("result");
+         // Default to images tab if video was not generated
+         if (!generateVideo) {
+            setTimeout(() => {
+                const imagesTabBtn = document.getElementById("tab-btn-images");
+                if (imagesTabBtn) imagesTabBtn.click();
+            }, 100);
+         }
       } else {
          throw new Error("Connection dropped. The server might have timed out during video generation. Please check GCP logs or try a shorter video.");
       }
@@ -312,11 +323,37 @@ export default function GhibliAutomation() {
                   width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)",
                   borderRadius: 16, padding: "18px 20px", color: "#fff", fontSize: 16,
                   fontFamily: "'Inter', sans-serif", outline: "none", transition: "all 0.3s",
-                  boxShadow: "inset 0 2px 10px rgba(0,0,0,0.2)"
+                  boxShadow: "inset 0 2px 10px rgba(0,0,0,0.2)", marginBottom: 20
                 }}
                 onFocus={(e) => e.target.style.borderColor = "rgba(74,255,138,0.5)"}
                 onBlur={(e) => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
               />
+              
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
+                    Number of Scenes
+                  </div>
+                  <input 
+                    type="number" min="1"
+                    value={numScenes} 
+                    onChange={e => setNumScenes(parseInt(e.target.value) || 5)} 
+                    style={{ 
+                      width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
+                      borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none" 
+                    }} 
+                  />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
+                    Render Video
+                  </div>
+                  <label style={{ display: "flex", alignItems: "center", cursor: "pointer", height: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16, padding: "12px 20px" }}>
+                    <input type="checkbox" checked={generateVideo} onChange={e => setGenerateVideo(e.target.checked)} style={{ width: 18, height: 18, marginRight: 10, accentColor: "#4aff8a" }} />
+                    <span style={{ color: "#fff", fontSize: 15, fontFamily: "'Inter', sans-serif" }}>Create MP4 (slower)</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 40 }}>
@@ -386,6 +423,7 @@ function ResultPanel({ result, onReset, parseMetadata }) {
   const meta = parseMetadata(result.metadata);
   const tabs = [
     { id: "video", label: "🎬 Showcase Video" },
+    { id: "images", label: "🖼️ Scenes" },
     { id: "metadata", label: "❋ YouTube Meta" },
     { id: "visuals", label: "◈ Prompts" },
     { id: "script", label: "✿ Script" },
@@ -418,7 +456,7 @@ function ResultPanel({ result, onReset, parseMetadata }) {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         {tabs.map(t => (
-          <button key={t.id} className="tab-btn" onClick={() => setTab(t.id)} style={{
+          <button key={t.id} id={`tab-btn-${t.id}`} className="tab-btn" onClick={() => setTab(t.id)} style={{
             flex: 1, padding: "14px 10px", borderRadius: 16,
             background: tab === t.id ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.3)",
             border: "1px solid",
@@ -450,6 +488,18 @@ function ResultPanel({ result, onReset, parseMetadata }) {
             )}
           </div>
         )}
+        {tab === "images" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+            {result.image_urls && result.image_urls.length > 0 ? result.image_urls.map((url, i) => (
+              <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)" }}>
+                <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
+                <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image {i+1}</a>
+              </div>
+            )) : (
+              <div style={{ gridColumn: "1 / -1", padding: "80px 0", textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif" }}>Images not available.</div>
+            )}
+          </div>
+        )}
         {tab === "script" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
             {result.script}
@@ -457,8 +507,16 @@ function ResultPanel({ result, onReset, parseMetadata }) {
         )}
         {tab === "visuals" && (
           <div>
-            <div style={{ fontSize: 13, color: "rgba(74,255,138,0.8)", fontFamily: "'Inter', sans-serif", textTransform: "uppercase", letterSpacing: 1, marginBottom: 20 }}>
-              ◈ Copy these prompts to an Image Generator
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 13, color: "rgba(74,255,138,0.8)", fontFamily: "'Inter', sans-serif", textTransform: "uppercase", letterSpacing: 1 }}>
+                ◈ Copy these prompts to an Image Generator
+              </div>
+              <button onClick={() => {
+                navigator.clipboard.writeText(result.visuals);
+                alert("Prompts copied to clipboard!");
+              }} style={{ background: "rgba(74,255,138,0.2)", border: "1px solid rgba(74,255,138,0.5)", color: "#4aff8a", padding: "6px 16px", borderRadius: 100, cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 13, transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>
+                Copy Prompts
+              </button>
             </div>
             <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
               {result.visuals}

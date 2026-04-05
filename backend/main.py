@@ -33,9 +33,13 @@ def health():
 async def generate(request: Request):
     data = await request.json()
     topic = data.get("topic", "Enchanted Forest")
+    num_scenes = data.get("numScenes", 5)
+    generate_video = data.get("generateVideo", True)
     
     initial_state = {
         "topic": topic,
+        "num_scenes": num_scenes,
+        "generate_video": generate_video,
         "concept": "",
         "script": "",
         "visuals": "",

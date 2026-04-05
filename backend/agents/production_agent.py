@@ -12,19 +12,31 @@ class ProductionAgent(BaseAgent):
     def execute(self, state: GraphState) -> GraphState:
         BUCKET_NAME = "ghibli-assets-1775332583"
         try:
+            num_scenes = state.get('num_scenes', 5)
             # 1. Parse prompts from state["visuals"]
             prompts = [line.strip() for line in state["visuals"].split("\n") if line.strip() and (line[0].isdigit() or line.startswith("-"))]
             if not prompts:
-                prompts = [state["topic"]] * 5
+                prompts = [state["topic"]] * num_scenes
                 
             # 2. Generate Images
-            print("ProductionAgent: Generating images...")
-            image_paths = generate_images(prompts[:5])
+            print(f"ProductionAgent: Generating {num_scenes} images...")
+            image_paths = generate_images(prompts[:num_scenes])
             image_urls = []
             print("ProductionAgent: Uploading images...")
             for path in image_paths:
                 url = upload_to_gcs(path, BUCKET_NAME)
                 image_urls.append(url)
+            
+            if not state.get('generate_video', True):
+                print("ProductionAgent: Video generation skipped by user.")
+                for ip in image_paths:
+                    if os.path.exists(ip):
+                        os.remove(ip)
+                return {
+                    "image_urls": image_urls,
+                    "video_url": "",
+                    "logs": ["🎬 Video generation skipped.", "✅ Images generated successfully!"]
+                }
             
             # 3. Generate Audio
             print("ProductionAgent: Generating audio...")
