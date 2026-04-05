@@ -38,14 +38,21 @@ def generate_images(prompts: List[str]) -> List[str]:
                     language="en",
                     aspect_ratio="16:9"
                 )
+                
+                # Some older models or safety filters return empty arrays instead of throwing explicit errors!
+                if not response or len(response) == 0:
+                    raise IndexError(f"Model {model_id} returned an empty response. Likely an aspect ratio or safety block.")
+                    
                 path = f"scene_{i}.png"
                 response[0].save(location=path, include_generation_parameters=False)
                 image_paths.append(path)
                 success = True
                 break
             except Exception as e:
-                if "429" in str(e) or "Quota exceeded" in str(e):
-                    print(f"⚠️ {model_id} Quota exceeded. Falling back...")
+                # Catch empty list errors, 429 quotas, or 400 Bad Request (aspect ratio errors) and fall back
+                err_str = str(e)
+                if "429" in err_str or "Quota exceeded" in err_str or "list index out of range" in err_str or "empty response" in err_str or "400" in err_str:
+                    print(f"⚠️ {model_id} failed with: {err_str}. Falling back...")
                     continue
                 else:
                     raise e
