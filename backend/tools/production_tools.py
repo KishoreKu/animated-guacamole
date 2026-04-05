@@ -113,18 +113,52 @@ def generate_audio(script_scenes: List[str]) -> List[str]:
 
 def stitch_video(image_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4"):
     """
-    Stitches local images and audio into a final MP4.
+    Stitches local images and audio into a final MP4 with Cinematic Ken Burns Parallax effect.
     """
+    from PIL import Image
+    import numpy as np
+    
+    def make_kenburns(clip, zoom_factor=0.15):
+        w, h = clip.size
+        # Fallback for Pillow versions
+        resample_filter = getattr(Image, 'Resampling', getattr(Image, 'LANCZOS', None))
+        resample_val = resample_filter.LANCZOS if hasattr(resample_filter, 'LANCZOS') else Image.LANCZOS
+        
+        def effect(get_frame, t):
+            img = Image.fromarray(get_frame(t))
+            
+            # Calculate current zoom (zooming slowly inward)
+            z = 1.0 + zoom_factor * (t / clip.duration)
+            
+            # Calculate new cropped window
+            new_w, new_h = w / z, h / z
+            left = (w - new_w) / 2
+            top = (h - new_h) / 2
+            right = left + new_w
+            bottom = top + new_h
+            
+            # Crop the inward box and resize it back up to normal 1080p width
+            cropped = img.crop((left, top, right, bottom))
+            resized = cropped.resize((w, h), resample_val)
+            
+            return np.array(resized)
+            
+        return clip.fl(effect)
+
     clips = []
-    for img_p, audio_p in zip(image_paths, audio_paths):
+    for i, (img_p, audio_p) in enumerate(zip(image_paths, audio_paths)):
         audio_clip = AudioFileClip(audio_p)
         img_clip = ImageClip(img_p).set_duration(audio_clip.duration)
+        
+        print(f"Applying Cinematic Ken Burns to Scene {i+1}...")
+        img_clip = make_kenburns(img_clip, zoom_factor=0.12)
+        
         img_clip = img_clip.set_audio(audio_clip)
-        img_clip = img_clip.crossfadein(0.5)
+        img_clip = img_clip.crossfadein(0.8)
         clips.append(img_clip)
         
     final_clip = concatenate_videoclips(clips, method="compose")
-    final_clip.write_videofile(output_filename, fps=24, codec="libx264")
+    final_clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
     
     return output_filename
 
