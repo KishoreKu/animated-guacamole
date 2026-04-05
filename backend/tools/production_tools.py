@@ -19,7 +19,8 @@ def generate_images(prompts: List[str]) -> List[str]:
         "imagen-3.0-generate-001",
         "imagen-3.0-fast-generate-001",
         "imagegeneration@006",
-        "imagegeneration@005"
+        "imagegeneration@005",
+        "pollinations"
     ]
     
     image_paths = []
@@ -31,6 +32,25 @@ def generate_images(prompts: List[str]) -> List[str]:
         for model_id in fallback_models:
             print(f"Trying model: {model_id}")
             try:
+                path = f"scene_{i}.png"
+                
+                if model_id == "pollinations":
+                    import requests
+                    from urllib.parse import quote
+                    print("⚠️ Using Pollinations.ai free fallback...")
+                    # Generate a unique seed or add resolution to avoid caching identical images
+                    prompt_encoded = quote(f"Studio Ghibli style, soft watercolor aesthetic, high quality animation still: {prompt}")
+                    url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=1280&height=720&nologo=true"
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        with open(path, 'wb') as f:
+                            f.write(response.content)
+                        image_paths.append(path)
+                        success = True
+                        break
+                    else:
+                        raise Exception(f"Pollinations returned status {response.status_code}")
+                
                 model = ImageGenerationModel.from_pretrained(model_id)
                 response = model.generate_images(
                     prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
@@ -45,15 +65,14 @@ def generate_images(prompts: List[str]) -> List[str]:
                 if not images or len(images) == 0:
                     raise IndexError(f"Model {model_id} returned an empty response. Likely an aspect ratio or safety block.")
                     
-                path = f"scene_{i}.png"
                 images[0].save(location=path, include_generation_parameters=False)
                 image_paths.append(path)
                 success = True
                 break
             except Exception as e:
-                # Catch empty list errors, 429 quotas, or 400 Bad Request (aspect ratio errors) and fall back
+                # Catch empty list errors, 429 quotas, 404 EOL, or 400 Bad Request (aspect ratio errors) and fall back
                 err_str = str(e)
-                if "429" in err_str or "Quota exceeded" in err_str or "list index out of range" in err_str or "empty response" in err_str or "400" in err_str:
+                if "429" in err_str or "Quota" in err_str or "out of range" in err_str or "empty" in err_str or "400" in err_str or "404" in err_str or "end of life" in err_str or "pollinations" in err_str.lower():
                     print(f"⚠️ {model_id} failed with: {err_str}. Falling back...")
                     continue
                 else:
