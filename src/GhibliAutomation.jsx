@@ -171,46 +171,50 @@ export default function GhibliAutomation() {
         buffer = lines.pop(); // Keep the last partial line in the buffer
 
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.replace("data: ", ""));
-              console.log("📥 Received update:", data);
+          if (!line.startsWith("data: ")) continue;
+          
+          try {
+            const rawJson = line.replace("data: ", "").trim();
+            if (!rawJson) continue;
+            
+            const data = JSON.parse(rawJson);
+            console.log("📥 Received update:", data);
+            
+            if (data.status === "done") continue;
+            if (data.error) throw new Error(data.error);
+
+            // PROCESS EVERY NODE IN THE DATA OBJECT
+            Object.entries(data).forEach(([nodeName, delta]) => {
+              if (!delta || typeof delta !== 'object') return;
+
+              // 1. Update the master accumulation
+              accumulatedState = { ...accumulatedState, ...delta };
               
-              if (data.status === "done") {
-                 // Finalizing...
-              } else if (data.error) {
-                throw new Error(data.error);
-              } else {
-                const nodeName = Object.keys(data)[0];
-                const delta = data[nodeName];
-
-                if (nodeName && delta) {
-                  // MERGE DELTA INTO ACCUMULATED STATE
-                  accumulatedState = { ...accumulatedState, ...delta };
-                  
-                  setStatus(nodeName, "done");
-                  if (delta[nodeName]) {
-                    setOutput(nodeName, delta[nodeName]);
-                  }
-                  
-                  if (delta.logs && delta.logs.length > 0) {
-                    delta.logs.forEach(l => addLog(l));
-                  }
-
-                  // If it's the last agent, set final result
-                  if (nodeName === "production") {
-                    setFinalResult({ ...accumulatedState });
-                  } else {
-                    const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
-                    if (nextAgentMap[nodeName]) {
-                      setStatus(nextAgentMap[nodeName], "running");
-                    }
-                  }
-                }
+              // 2. Mark the node as done in UI
+              setStatus(nodeName, "done");
+              
+              // 3. Set specific output for the card
+              if (delta[nodeName]) {
+                setOutput(nodeName, delta[nodeName]);
               }
-            } catch (jsonErr) {
-              console.warn("Failed to parse JSON line:", line, jsonErr);
-            }
+              
+              // 4. Append logs
+              if (Array.isArray(delta.logs)) {
+                delta.logs.forEach(l => addLog(l));
+              }
+
+              // 5. Trigger NEXT agent or FINALIZE
+              if (nodeName === "production") {
+                setFinalResult({ ...accumulatedState });
+              } else {
+                const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
+                const next = nextAgentMap[nodeName];
+                if (next) setStatus(next, "running");
+              }
+            });
+
+          } catch (jsonErr) {
+            console.error("❌ Data Processing Error:", jsonErr, "Line:", line);
           }
         }
       }
