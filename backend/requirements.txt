@@ -6,3 +6,7 @@ mcp
 pydantic
 python-dotenv
 langchain-core
+moviepy
+google-cloud-text-to-speech
+google-cloud-storage
+google-cloud-aiplatform
