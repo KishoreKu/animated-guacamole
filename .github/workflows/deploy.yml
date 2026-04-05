@@ -52,6 +52,7 @@ jobs:
             REDDIT_CLIENT_ID=REDDIT_CLIENT_ID:latest
             REDDIT_CLIENT_SECRET=REDDIT_CLIENT_SECRET:latest
             CRON_SECRET_TOKEN=CRON_SECRET_TOKEN:latest
+            REDDIT_USER_AGENT=REDDIT_USER_AGENT:latest
 
   deploy-frontend:
     runs-on: ubuntu-latest
