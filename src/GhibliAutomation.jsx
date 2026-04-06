@@ -155,6 +155,25 @@ export default function GhibliAutomation() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'ghibli-scene.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      // Fallback: open in new tab if fetch fails
+      window.open(url, '_blank');
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -517,7 +536,7 @@ export default function GhibliAutomation() {
 
         {/* RESULT PHASE */}
         {phase === "result" && finalResult && (
-          <ResultPanel result={finalResult} onReset={reset} parseMetadata={parseMetadata} />
+          <ResultPanel result={finalResult} onReset={reset} parseMetadata={parseMetadata} handleDownload={handleDownload} />
         )}
 
         {/* GALLERY PHASE */}
@@ -528,6 +547,7 @@ export default function GhibliAutomation() {
               onReset={() => setSelectedGalleryItem(null)} 
               parseMetadata={parseMetadata}
               isGalleryView={true}
+              handleDownload={handleDownload}
             />
           ) : (
             <GalleryPanel 
@@ -593,7 +613,7 @@ function GalleryPanel({ data, loading, onReset, onViewScenes }) {
   );
 }
 
-function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
+function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDownload }) {
   const [tab, setTab] = useState("images");
   const [showCinematic, setShowCinematic] = useState(false);
   const meta = parseMetadata(result.metadata);
@@ -712,7 +732,12 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
                       </div>
                     )}
                     <div style={{ marginTop: "auto" }}>
-                      <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
+                      <button 
+                        onClick={() => handleDownload(url, `ghibli_scene_${i}.png`)}
+                        style={{ width: "100%", display: "block", background: "rgba(74, 184, 255, 0.2)", color: "#4ab8ff", border: "1px solid #4ab8ff", padding: "10px", borderRadius: 12, marginBottom: 8, cursor: "pointer", fontWeight: 600, textAlign: "center", textDecoration: "none" }}
+                      >
+                        Download Image
+                      </button>
                       {visualPromptsList[i] && (
                         <>
                           <button onClick={() => {
