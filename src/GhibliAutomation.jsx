@@ -301,6 +301,15 @@ export default function GhibliAutomation() {
 
   const parseMetadata = (raw) => {
     if (!raw) return {};
+    // If it's already an object (from DB), return it
+    if (typeof raw === 'object') {
+      return {
+        title: raw.title || "",
+        tags: Array.isArray(raw.tags) ? raw.tags.join(", ") : (raw.tags || ""),
+        thumbnail: raw.thumbnail || ""
+      };
+    }
+    // Otherwise parse string from pipeline
     const title = raw.match(/TITLE[:\s]+(.+)/i)?.[1]?.trim() || "";
     const tags = raw.match(/TAGS[:\s]+(.+)/i)?.[1]?.trim() || "";
     const thumbnail = raw.match(/THUMBNAIL[^ \n:]*:[:\s]+(.+)/i)?.[1]?.trim() || "";
@@ -583,7 +592,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
   const [tab, setTab] = useState("images");
   const meta = parseMetadata(result.metadata);
   
-  const visualPromptsList = result.visuals 
+  const visualPromptsList = (typeof result.visuals === 'string') 
     ? result.visuals.split('\n').filter(line => line.trim() && (line.trim().charAt(0) >= '0' && line.trim().charAt(0) <= '9' || line.trim().startsWith('-')))
     : [];
 
