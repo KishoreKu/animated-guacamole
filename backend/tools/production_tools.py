@@ -7,7 +7,9 @@ import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 from google.cloud import texttospeech
 from google.cloud import storage
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
+from google import genai
+from google.genai import types
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
     """Helper for parallel image generation."""
@@ -77,6 +79,47 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
+def generate_video_clips(prompts: List[str]) -> List[str]:
+    """
+    Generates moving video clips using Google Veo on Vertex AI.
+    """
+    client = genai.Client(vertexai=True, project="ghibli-studio-1775332583", location="us-central1")
+    session_id = str(int(time.time()))
+    video_paths = []
+    
+    for i, prompt in enumerate(prompts):
+        print(f"🎬 Creating cinematic scene {i+1} with Veo...")
+        try:
+            # Start asynchronous video generation
+            operation = client.models.generate_videos(
+                model="veo-3.1-generate-001",
+                prompt=f"Studio Ghibli style animation still, soft watercolor aesthetic, cinematic movement: {prompt}",
+                config=types.GenerateVideosConfig(
+                    aspect_ratio="16:9",
+                )
+            )
+            
+            # Poll for completion (video takes about 60-120 seconds)
+            while not operation.done:
+                time.sleep(10)
+                operation = client.operations.get_videos_operation(operation=operation)
+            
+            # Download the result from GCS to local tmp
+            path = f"scene_{session_id}_{i}.mp4"
+            # Veo returns the video bytes or URI
+            content = operation.response.generated_videos[0].video_bytes
+            with open(path, 'wb') as f:
+                f.write(content)
+            video_paths.append(path)
+            
+        except Exception as e:
+            print(f"⚠️ Veo failed for scene {i+1}: {e}. Falling back to image-to-video...")
+            # If video fails, generate an image and we'll use Ken Burns later
+            img_path = _generate_single_image(prompt, i, session_id)
+            video_paths.append(img_path)
+            
+    return video_paths
+
 def _generate_single_audio(scene: str, i: int, session_id: str) -> str:
     """Helper for parallel audio synthesis."""
     from google.cloud import texttospeech
@@ -105,51 +148,57 @@ def generate_audio(script_scenes: List[str]) -> List[str]:
     
     return audio_paths
 
-def stitch_video(image_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4"):
+def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4"):
     """
-    Stitches local images and audio into a final MP4 with Cinematic Ken Burns Parallax effect.
+    Stitches local assets (images or mp4s) and audio into a final MP4.
     """
     from PIL import Image
     import numpy as np
     
     def make_kenburns(clip, zoom_factor=0.15):
         w, h = clip.size
-        # Fallback for Pillow versions
         resample_filter = getattr(Image, 'Resampling', getattr(Image, 'LANCZOS', None))
         resample_val = resample_filter.LANCZOS if hasattr(resample_filter, 'LANCZOS') else Image.LANCZOS
         
         def effect(get_frame, t):
             img = Image.fromarray(get_frame(t))
-            
-            # Calculate current zoom (zooming slowly inward)
             z = 1.0 + zoom_factor * (t / clip.duration)
-            
-            # Calculate new cropped window
             new_w, new_h = w / z, h / z
             left = (w - new_w) / 2
             top = (h - new_h) / 2
             right = left + new_w
             bottom = top + new_h
-            
-            # Crop the inward box and resize it back up to normal 1080p width
             cropped = img.crop((left, top, right, bottom))
             resized = cropped.resize((w, h), resample_val)
-            
             return np.array(resized)
             
         return clip.fl(effect)
 
     clips = []
-    for i, (img_p, audio_p) in enumerate(zip(image_paths, audio_paths)):
+    for i, (asset_p, audio_p) in enumerate(zip(asset_paths, audio_paths)):
         audio_clip = AudioFileClip(audio_p)
-        img_clip = ImageClip(img_p).set_duration(audio_clip.duration)
         
-        print(f"Applying Cinematic Ken Burns to Scene {i+1}...")
-        img_clip = make_kenburns(img_clip, zoom_factor=0.12)
-        
-        img_clip = img_clip.set_audio(audio_clip)
-        img_clip = img_clip.crossfadein(0.8)
-        clips.append(img_clip)
+        if asset_p.endswith(".mp4"):
+            # It's a moving video from Veo
+            video_clip = VideoFileClip(asset_p)
+            # Match duration or loop if audio is longer
+            if video_clip.duration < audio_clip.duration:
+                # Loop video to match audio
+                video_clip = video_clip.loop(duration=audio_clip.duration)
+            else:
+                video_clip = video_clip.set_duration(audio_clip.duration)
+            
+            video_clip = video_clip.set_audio(audio_clip)
+        else:
+            # It's a static image (fallback)
+            img_clip = ImageClip(asset_p).set_duration(audio_clip.duration)
+            print(f"Applying Cinematic Ken Burns to Scene {i+1}...")
+            img_clip = make_kenburns(img_clip, zoom_factor=0.12)
+            img_clip = img_clip.set_audio(audio_clip)
+            video_clip = img_clip
+
+        video_clip = video_clip.crossfadein(0.8)
+        clips.append(video_clip)
         
     final_clip = concatenate_videoclips(clips, method="compose")
     final_clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
