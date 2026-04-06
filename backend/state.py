@@ -16,6 +16,8 @@ class GraphState(TypedDict):
     image_urls: List[str]
     audio_urls: List[str]
     video_url: str
+    local_image_paths: List[str]
+    local_audio_paths: List[str]
     logs: Annotated[List[str], operator.add]
     messages: Annotated[List, add_messages]
     evaluations: List[dict] # List of {node: str, score: int, feedback: str}

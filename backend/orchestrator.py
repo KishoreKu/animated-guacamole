@@ -24,7 +24,9 @@ def create_orchestrator():
     workflow.add_node("script", script_agent.execute)
     workflow.add_node("visuals", visual_agent.execute)
     workflow.add_node("metadata", metadata_agent.execute)
-    workflow.add_node("production", production_agent.execute)
+    workflow.add_node("image_gen", production_agent.generate_images_node)
+    workflow.add_node("audio_gen", production_agent.generate_audio_node)
+    workflow.add_node("finalize_video", production_agent.finalize_video_node)
     workflow.add_node("critic", critic_agent.execute)
 
     # Logic: Concept -> Critic -> [If Revise: Concept, Else: Script] -> Critic -> [If Revise: Script, Else: Visuals] -> ...
@@ -39,7 +41,8 @@ def create_orchestrator():
         last_eval = state.get("evaluations", [])[-1] if state.get("evaluations") else None
         if last_eval and last_eval["node"] == "script" and last_eval["status"] == "REVISE":
             return "script"
-        return "visuals"
+        # APPROVED -> Fan out into parallel agents
+        return ["visuals", "metadata"]
 
     # Set entry point
     workflow.set_entry_point("concept")
@@ -61,13 +64,16 @@ def create_orchestrator():
         should_revise_script,
         {
             "script": "script",
-            "visuals": "visuals"
+            "visuals": "visuals",
+            "metadata": "metadata"
         }
     )
 
-    workflow.add_edge("visuals", "metadata")
-    workflow.add_edge("metadata", "production")
-    workflow.add_edge("production", END)
+    # Join the parallel branches into production steps
+    workflow.add_edge(["visuals", "metadata"], "image_gen")
+    workflow.add_edge("image_gen", "audio_gen")
+    workflow.add_edge("audio_gen", "finalize_video")
+    workflow.add_edge("finalize_video", END)
 
     return workflow.compile()
 
