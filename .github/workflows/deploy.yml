@@ -70,6 +70,9 @@ jobs:
         run: |
           npm install
           npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
