@@ -114,8 +114,13 @@ export default function GhibliAutomation() {
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
   const [finalResult, setFinalResult] = useState(null);
+  const [phase, setPhase] = useState("input");
+  const [logLines, setLogLines] = useState([]);
+  const logRef = useRef(null);
   const [galleryData, setGalleryData] = useState([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
+
+  const addLog = (msg) => setLogLines(l => [...l, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
   useEffect(() => {
     // Check initial session
