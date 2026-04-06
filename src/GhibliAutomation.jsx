@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { CheckCircle2, AlertCircle, Sparkles, Plus, Trash2, Layout, Video, Image as ImageIcon, Send, Clock, Play, Download, Search, Settings, User, LogOut, ExternalLink, Bookmark, Share2, Info, ChevronRight, Menu, X, Terminal, Monitor, Tablet, Phone, Type, Layers, Eye } from 'lucide-react';
+import GhibliTitleCard from './components/GhibliTitleCard';
 
 const AGENTS = [
   { id: "concept", icon: "✦", label: "Concept Agent", desc: "Generates story concept & world" },
@@ -590,6 +592,7 @@ function GalleryPanel({ data, loading, onReset, onViewScenes }) {
 
 function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
   const [tab, setTab] = useState("images");
+  const [showCinematic, setShowCinematic] = useState(false);
   const meta = parseMetadata(result.metadata);
   
   const visualPromptsList = (typeof result.visuals === 'string') 
@@ -605,6 +608,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
 
   return (
     <div style={{ animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+      {/* Header Summary Card */}
       <div style={{
         background: "rgba(255,255,255,0.05)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
         border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: "30px 40px", marginBottom: 24,
@@ -628,80 +632,110 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
         <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", fontFamily: "'Inter', sans-serif", lineHeight: 1.6 }}>{result.concept}</div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {tabs.map(t => (
-          <button key={t.id} id={`tab-btn-${t.id}`} className="tab-btn" onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: "14px 10px", borderRadius: 16,
-            background: tab === t.id ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.3)",
-            border: "1px solid",
-            borderColor: tab === t.id ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)",
-            color: tab === t.id ? "#fff" : "rgba(255,255,255,0.5)",
-            fontSize: 14, fontWeight: tab === t.id ? 600 : 400, cursor: "pointer", fontFamily: "'Inter', sans-serif",
-            transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-          }}>{t.label}</button>
-        ))}
+      {/* Tabs and Toggles */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {tabs.map(t => (
+            <button key={t.id} className="tab-btn" onClick={() => setTab(t.id)} style={{
+              padding: "14px 20px", borderRadius: 16,
+              background: tab === t.id ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.3)",
+              border: "1px solid",
+              borderColor: tab === t.id ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.05)",
+              color: tab === t.id ? "#fff" : "rgba(255,255,255,0.5)",
+              fontSize: 14, fontWeight: tab === t.id ? 600 : 400, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+              transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}>{t.label}</button>
+          ))}
+        </div>
+        
+        {tab === "images" && (
+          <button 
+            onClick={() => setShowCinematic(!showCinematic)}
+            style={{
+              padding: "12px 20px", borderRadius: 16,
+              background: showCinematic ? "linear-gradient(135deg, #bd93f9, #ff79c6)" : "rgba(189,147,249,0.1)",
+              border: "1px solid",
+              borderColor: showCinematic ? "#bd93f9" : "rgba(189,147,249,0.3)",
+              color: showCinematic ? "#fff" : "#bd93f9",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+              display: "flex", alignItems: "center", gap: 8, transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+            }}
+          >
+            {showCinematic ? <Eye size={16} /> : <Sparkles size={16} />}
+            {showCinematic ? "Disable Preview" : "🎬 Cinematic Title Preview"}
+          </button>
+        )}
       </div>
 
+      {/* Main Content Area */}
       <div style={{
         background: "rgba(0,0,0,0.5)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 30, minHeight: 350,
+        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 30, minHeight: 450,
         marginBottom: 30, boxShadow: "inset 0 4px 20px rgba(0,0,0,0.4)",
       }}>
+        {/* IMAGES TAB */}
         {tab === "images" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-            {result.image_urls && result.image_urls.length > 0 ? result.image_urls.map((url, i) => (
-              <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
-                <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
-                
-                <div style={{ marginTop: "auto" }}>
-                  <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
-                  
-                  {visualPromptsList[i] && (
-                    <>
-                      <button onClick={() => {
-                        if (!visualPromptsList[i]) return;
-                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
-                        const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
-                        navigator.clipboard.writeText(videoPrompt);
-                        alert("Video Prompt Copied!\n\n" + videoPrompt);
-                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
-                        Copy Video Prompt
-                      </button>
-                      
-                      <button onClick={() => {
-                        if (!visualPromptsList[i]) return;
-                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
-                        const bgmPrompt = `Emotional orchestral soundtrack, piano and sweeping strings, Joe Hisaishi and Studio Ghibli style, cinematic background music for an animated movie scene featuring: ${basePrompt}`;
-                        navigator.clipboard.writeText(bgmPrompt);
-                        alert("BGM Prompt Copied!\n\n" + bgmPrompt);
-                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(189,147,249,0.2)", color: "#bd93f9", border: "1px solid rgba(189,147,249,0.3)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(189,147,249,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(189,147,249,0.2)"}>
-                        Copy BGM Prompt
-                      </button>
-                    </>
-                  )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
+            {showCinematic && result.image_urls?.[0] && (
+              <div style={{ animation: "fadeInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+                <div style={{ marginBottom: 16, color: "rgba(189,147,249,0.8)", fontSize: 11, textTransform: "uppercase", letterSpacing: 2, fontWeight: 600 }}>
+                  🎥 Kinetic Typography Preview (Pretext API)
                 </div>
+                <GhibliTitleCard 
+                  text={meta.title || result.topic} 
+                  imageUrl={result.image_urls[0]} 
+                  width={1280} 
+                  height={720}
+                />
               </div>
-            )) : (
-              <div style={{ gridColumn: "1 / -1", padding: "80px 0", textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif" }}>Images not available.</div>
             )}
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+              {result.image_urls && result.image_urls.length > 0 ? (
+                result.image_urls.map((url, i) => (
+                  <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
+                    <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
+                    <div style={{ marginTop: "auto" }}>
+                      <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
+                      {visualPromptsList[i] && (
+                        <>
+                          <button onClick={() => {
+                            const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                            const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
+                            navigator.clipboard.writeText(videoPrompt);
+                            alert("Video Prompt Copied!\n\n" + videoPrompt);
+                          }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>Copy Video Prompt</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ gridColumn: "1 / -1", padding: "80px 0", textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif" }}>Images not available.</div>
+              )}
+            </div>
           </div>
         )}
+
+        {/* SCRIPT TAB */}
         {tab === "script" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
             {result.script || "◈ Creative script data not available for this archived generation."}
           </pre>
         )}
+
+        {/* PROMPTS TAB */}
         {tab === "visuals" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 13, color: "rgba(74,255,138,0.8)", fontFamily: "'Inter', sans-serif", textTransform: "uppercase", letterSpacing: 1 }}>
-                ◈ Copy these prompts to an Image Generator
+                ◈ Visual Prompt Library
               </div>
               <button onClick={() => {
                 navigator.clipboard.writeText(result.visuals);
                 alert("Prompts copied to clipboard!");
               }} style={{ background: "rgba(74,255,138,0.2)", border: "1px solid rgba(74,255,138,0.5)", color: "#4aff8a", padding: "6px 16px", borderRadius: 100, cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 13, transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>
-                Copy Prompts
+                Copy All Prompts
               </button>
             </div>
             <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
@@ -709,6 +743,8 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
             </pre>
           </div>
         )}
+
+        {/* METADATA TAB */}
         {tab === "metadata" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 1.8, margin: 0, fontFamily: "'SF Mono', monospace", background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16 }}>
             {typeof result.metadata === 'object' ? JSON.stringify(result.metadata, null, 2) : (result.metadata || "◈ Metadata not available.")}
@@ -716,6 +752,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
         )}
       </div>
 
+      {/* Action Footer */}
       <button className="run-btn" onClick={onReset} style={{
         width: "100%", padding: "20px", borderRadius: 20,
         border: "none", color: "#000", fontSize: 18, fontWeight: 700,
