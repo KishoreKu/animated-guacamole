@@ -182,15 +182,6 @@ export default function GhibliAutomation() {
 
   const runPipeline = async () => {
     const topic = customTheme || theme;
-    if (!authInitialized) return null;
-    if (authError) return (
-      <div style={{ color: "#ff4a8a", padding: 50, textAlign: "center", background: "#0f0f1b", minHeight: "100vh" }}>
-        <h2>🚨 Studio Configuration Error</h2>
-        <p>{authError}</p>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your GitHub Secrets.</p>
-      </div>
-    );
-    if (!user) return <Auth onLogin={setUser} />;
     if (!topic) return;
     setRunning(true);
     setPhase("pipeline");
@@ -203,9 +194,13 @@ export default function GhibliAutomation() {
       addLog(`🎬 Pipeline started for topic: '${topic}'`);
       let accumulatedState = { topic, concept: "", script: "", visuals: "", metadata: "", image_urls: [], audio_urls: [], video_url: "" };
       
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({ topic, numScenes, generateVideo }),
       });
 
@@ -310,8 +305,32 @@ export default function GhibliAutomation() {
     return { title, tags, thumbnail };
   };
 
+  if (!authInitialized) return null;
+  if (authError) return (
+    <div style={{ color: "#ff4a8a", padding: 50, textAlign: "center", background: "#0f0f1b", minHeight: "100vh", fontFamily: "'Outfit', sans-serif" }}>
+      <h2 style={{ fontSize: "2rem", marginBottom: 20 }}>🚨 Studio Configuration Error</h2>
+      <div style={{ background: "rgba(255,255,255,0.05)", padding: 30, borderRadius: 24, border: "1px solid rgba(255,255,255,0.1)", maxWidth: 600, margin: "0 auto" }}>
+        <p style={{ fontSize: 18, marginBottom: 20 }}>{authError}</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, lineHeight: 1.6 }}>
+          Please check your environment variables.
+        </p>
+      </div>
+    </div>
+  );
+  if (!user) return <Auth onLogin={setUser} />;
+
   return (
     <div style={{ minHeight: "100vh", position: "relative", color: "#fff", display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "absolute", top: 20, right: 30, zIndex: 10, display: "flex", alignItems: "center", gap: 15 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{user.email}</div>
+        <button onClick={handleSignOut} style={{
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          color: "rgba(255,255,255,0.7)", padding: "8px 16px", borderRadius: 12, cursor: "pointer",
+          fontSize: 13, transition: "all 0.2s"
+        }} onMouseEnter={e => e.target.style.background = "rgba(255,74,138,0.1)"} onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.05)"}>
+          Sign Out
+        </button>
+      </div>
       <GhibliBackground />
 
       <style>{`
