@@ -11,6 +11,7 @@ class MetadataAgent(BaseAgent):
             "2. DESCRIPTION (2 paragraphs, include keywords)\n"
             "3. TAGS (10 comma-separated tags)\n"
             "4. THUMBNAIL TEXT (bold 4-word overlay text)\n"
+            "5. BGM PROMPT (atmospheric Ghibli-style instrumental description, e.g. 'Piano, whimsical, strings, nostalgia')\n"
             "Use the 'youtube_seo_check' tool to validate your title before finalizing. "
             "Return in that exact format with labels."
         )
@@ -25,4 +26,16 @@ class MetadataAgent(BaseAgent):
             SystemMessage(content=self.persona),
             HumanMessage(content=msg)
         ])
-        return {"metadata": response.content, "logs": ["❋ YouTube metadata ready."]}
+        
+        content = response.content
+        bgm_prompt = "Atmospheric Ghibli instrumental music" # Fallback
+        
+        if "BGM PROMPT:" in content:
+            parts = content.split("BGM PROMPT:")
+            bgm_prompt = parts[-1].strip()
+            
+        return {
+            "metadata": content, 
+            "bgm_prompt": bgm_prompt,
+            "logs": ["❋ YouTube metadata and BGM prompt ready."]
+        }

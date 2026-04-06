@@ -53,23 +53,17 @@ async def run_generation_pipeline(prompt: str, source: str = "manual", num_scene
         "num_scenes": num_scenes,
         "generate_video": generate_video,
         "concept": "", "script": "", "visuals": "", "metadata": "",
+        "bgm_prompt": "",
         "image_urls": [], "audio_urls": [], "video_url": "", 
         "logs": [], "messages": [], "status": "pending"
     }
     
-    final_state = None
-    async for output in orchestrator.astream(initial_state):
-        # We don't stream to the terminal here unless for debugging
-        # But we capture the final state
-        for node_name, state_update in output.items():
-            if node_name == "production":
-                final_state = state_update
-
-    # Important: astream yields updates, we need to accumulate them or use invoke() if we don't need streaming
-    # For a background task, invoke() is cleaner.
-    if not final_state:
-        # Fallback to invoke if astream didn't yield the final production node clearly
-        final_state = await asyncio.to_thread(orchestrator.invoke, initial_state)
+    try:
+        # For background tasks, ainvoke is safer as it returns the full final state
+        final_state = await orchestrator.ainvoke(initial_state)
+    except Exception as e:
+        print(f"❌ Pipeline failed for '{prompt}': {e}")
+        return None
 
     # Save to Database
     if final_state and final_state.get("image_urls"):
@@ -79,6 +73,9 @@ async def run_generation_pipeline(prompt: str, source: str = "manual", num_scene
             "video_url": final_state.get("video_url", ""),
             "image_urls": final_state.get("image_urls", []),
             "metadata": {"title": final_state.get("metadata", ""), "tags": []},
+            "script": final_state.get("script", ""),
+            "visuals": final_state.get("visuals", ""),
+            "bgm_prompt": final_state.get("bgm_prompt", ""),
             "source": source
         }
         save_generation(db_data)

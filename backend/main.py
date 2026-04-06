@@ -95,6 +95,7 @@ async def generate(request: Request):
         "script": "",
         "visuals": "",
         "metadata": "",
+        "bgm_prompt": "",
         "logs": [f"🎬 Pipeline started for topic: '{topic}'"],
         "evaluations": [],
         "local_image_paths": [],
@@ -123,6 +124,7 @@ async def generate(request: Request):
                     "metadata": {"title": accumulated_state.get("metadata", ""), "tags": []},
                     "script": accumulated_state.get("script", ""),
                     "visuals": accumulated_state.get("visuals", ""),
+                    "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
                     "source": "manual",
                     "user_id": user.id  # Track who made this
                 }
