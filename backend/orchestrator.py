@@ -30,10 +30,12 @@ def create_orchestrator():
 
     # Add linear edges
     workflow.add_edge("concept", "script")
-    workflow.add_edge("script", ["visuals", "metadata"])
+    workflow.add_edge("script", "visuals")
+    workflow.add_edge("script", "metadata")
 
     # Join the parallel branches into production steps
-    workflow.add_edge(["visuals", "metadata"], "image_gen")
+    workflow.add_edge("visuals", "image_gen")
+    workflow.add_edge("metadata", "image_gen")
     workflow.add_edge("image_gen", "audio_gen")
     workflow.add_edge("audio_gen", "finalize_video")
     workflow.add_edge("finalize_video", END)
