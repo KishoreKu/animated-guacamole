@@ -30,9 +30,21 @@ class ProductionAgent(BaseAgent):
                 image_urls = list(executor.map(uploader, image_paths))
             
             # Archiving locally for the Public Archive
-            archive_dir = os.path.join(os.getcwd(), "backend", "public", "archive")
+            # Find project root where main.py and public/ folder should live
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            # If we are in local dev, 'project_root' is the parent of 'backend'. In production (Dockerfile COPY . .), it's the root.
+            # But wait, in local dev, 'main.py' is inside 'backend/'. 
+            # In production, 'main.py' is at '/app/'.
+            
+            # Let's use the current work dir as a fallback if the above doesn't have public/archive
+            archive_dir = os.path.join(project_root, "public", "archive")
             if not os.path.exists(archive_dir):
-                os.makedirs(archive_dir)
+                # Fallback to local 'backend/public/archive' if we are in root
+                local_dev_path = os.path.join(project_root, "backend", "public", "archive")
+                if os.path.exists(os.path.join(project_root, "backend")):
+                    archive_dir = local_dev_path
+            
+            os.makedirs(archive_dir, exist_ok=True)
             
             for ip in image_paths:
                 if os.path.exists(ip):

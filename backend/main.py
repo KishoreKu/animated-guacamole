@@ -26,9 +26,10 @@ app.add_middleware(
 
 # Static files for the archive
 public_dir = os.path.join(os.path.dirname(__file__), "public")
-if not os.path.exists(public_dir):
-    os.makedirs(public_dir)
-app.mount("/archive", StaticFiles(directory=os.path.join(public_dir, "archive")), name="archive")
+archive_dir = os.path.join(public_dir, "archive")
+if not os.path.exists(archive_dir):
+    os.makedirs(archive_dir, exist_ok=True)
+app.mount("/archive", StaticFiles(directory=archive_dir), name="archive")
 
 orchestrator = create_orchestrator()
 
