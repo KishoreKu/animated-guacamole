@@ -6,21 +6,25 @@ from backend.tools.ghibli_tools import youtube_seo_check
 class MetadataAgent(BaseAgent):
     def __init__(self):
         persona = (
-            "You are a YouTube SEO expert for Ghibli-style content. Generate: \n"
+            "You are a YouTube SEO and Sound Design expert for Ghibli-style content. \n"
+            "Based on the provided concept and scene-by-scene visual descriptions, generate: \n"
             "1. VIDEO TITLE (compelling, under 60 chars)\n"
             "2. DESCRIPTION (2 paragraphs, include keywords)\n"
             "3. TAGS (10 comma-separated tags)\n"
             "4. THUMBNAIL TEXT (bold 4-word overlay text)\n"
-            "5. BGM PROMPT (atmospheric Ghibli-style instrumental description, e.g. 'Piano, whimsical, strings, nostalgia')\n"
-            "Use the 'youtube_seo_check' tool to validate your title before finalizing. "
-            "Return in that exact format with labels."
+            "5. BGM PROMPT (a highly tailored atmospheric instrumental description that matches the specific mood of the scenes: e.g. 'Staccato piano, whimsical oboe, light rain ambiance, nostalgic')\n"
+            "Use the 'youtube_seo_check' tool to validate your title. Return labels for all 5 points."
         )
         super().__init__("metadata", persona, tools=[youtube_seo_check])
 
     def execute(self, state: GraphState) -> GraphState:
         msg = (
-            f"Create YouTube metadata for this Ghibli video:\nConcept: {state['concept']}\n\n"
-            f"Theme: {state['topic']}"
+            f"Create YouTube metadata and an atmospheric BGM prompt for this Ghibli video:\n\n"
+            f"Concept: {state['concept']}\n"
+            f"Theme: {state['topic']}\n"
+            f"Script Outline: {state['script'][:500]}...\n"
+            f"Visual Style / Scene Descriptions: {state['visuals']}\n\n"
+            "Ensure the BGM PROMPT reflects the specific mood, instrumentation, and art style mentioned in the visuals above."
         )
         response = self.llm.invoke([
             SystemMessage(content=self.persona),
