@@ -32,11 +32,21 @@ class MetadataAgent(BaseAgent):
         ])
         
         content = response.content
-        bgm_prompt = "Atmospheric Ghibli instrumental music" # Fallback
+        bgm_prompt = "Atmospheric Ghibli instrumental music" # Absolute Fallback
         
-        if "BGM PROMPT:" in content:
-            parts = content.split("BGM PROMPT:")
-            bgm_prompt = parts[-1].strip()
+        # More robust parsing (case-insensitive and handles various formats)
+        content_lower = content.lower()
+        if "bgm prompt" in content_lower:
+            # Find where 'bgm prompt' starts
+            start_index = content_lower.find("bgm prompt")
+            # Get everything after 'bgm prompt'
+            after_label = content[start_index + len("bgm prompt"):].strip()
+            # Remove leading colon if it exists
+            if after_label.startswith(":"):
+                after_label = after_label[1:].strip()
+            
+            # Use the first line of the extracted text as the prompt
+            bgm_prompt = after_label.split("\n")[0].strip() or bgm_prompt
             
         return {
             "metadata": content, 
