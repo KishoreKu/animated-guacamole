@@ -15,7 +15,7 @@ const THEMES = ["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain S
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const API_BASE = import.meta.env.VITE_API_URL || 
-  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://ghibli-backend-bskf4s232a-uc.a.run.app');
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://api-ghibli.gubbu.io');
 
 const GhibliBackground = () => (
   <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
