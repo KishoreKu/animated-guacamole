@@ -99,7 +99,13 @@ const AgentCard = ({ agent, status, output }) => {
   );
 };
 
+import Auth from './components/Auth';
+import { supabase } from './lib/supabaseClient';
+
 export default function GhibliAutomation() {
+  const [user, setUser] = useState(null);
+  const [authInitialized, setAuthInitialized] = useState(false);
+  const [authError, setAuthError] = useState(null);
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
@@ -111,11 +117,48 @@ export default function GhibliAutomation() {
   const [galleryData, setGalleryData] = useState([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
 
+  useEffect(() => {
+    // Check initial session
+    const initAuth = async () => {
+      try {
+        if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+          throw new Error("Missing Supabase configuration. Check your VITE_ environment variables.");
+        }
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        setUser(session?.user ?? null);
+        setAuthInitialized(true);
+      } catch (err) {
+        console.error("Auth init error:", err);
+        setAuthError(err.message);
+        setAuthInitialized(true);
+      }
+    };
+    initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
   const fetchGallery = async () => {
     setLoadingGallery(true);
     setPhase("gallery");
     try {
-      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generations");
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generations", {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      });
       const data = await response.json();
       setGalleryData(data.data || []);
     } catch (e) {
@@ -124,11 +167,6 @@ export default function GhibliAutomation() {
       setLoadingGallery(false);
     }
   };
-  const [phase, setPhase] = useState("input");
-  const [logLines, setLogLines] = useState([]);
-  const logRef = useRef(null);
-
-  const addLog = (msg) => setLogLines(l => [...l, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -139,6 +177,15 @@ export default function GhibliAutomation() {
 
   const runPipeline = async () => {
     const topic = customTheme || theme;
+    if (!authInitialized) return null;
+    if (authError) return (
+      <div style={{ color: "#ff4a8a", padding: 50, textAlign: "center", background: "#0f0f1b", minHeight: "100vh" }}>
+        <h2>🚨 Studio Configuration Error</h2>
+        <p>{authError}</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your GitHub Secrets.</p>
+      </div>
+    );
+    if (!user) return <Auth onLogin={setUser} />;
     if (!topic) return;
     setRunning(true);
     setPhase("pipeline");
