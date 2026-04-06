@@ -5,8 +5,6 @@ from backend.agents.script_agent import ScriptAgent
 from backend.agents.visual_agent import VisualAgent
 from backend.agents.metadata_agent import MetadataAgent
 from backend.agents.production_agent import ProductionAgent
-from backend.agents.critic_agent import CriticAgent
-
 def create_orchestrator():
     # Initialize agents
     concept_agent = ConceptAgent()
@@ -14,7 +12,6 @@ def create_orchestrator():
     visual_agent = VisualAgent()
     metadata_agent = MetadataAgent()
     production_agent = ProductionAgent()
-    critic_agent = CriticAgent()
 
     # Create the graph
     workflow = StateGraph(GraphState)
@@ -27,47 +24,13 @@ def create_orchestrator():
     workflow.add_node("image_gen", production_agent.generate_images_node)
     workflow.add_node("audio_gen", production_agent.generate_audio_node)
     workflow.add_node("finalize_video", production_agent.finalize_video_node)
-    workflow.add_node("critic", critic_agent.execute)
-
-    # Logic: Concept -> Critic -> [If Revise: Concept, Else: Script] -> Critic -> [If Revise: Script, Else: Visuals] -> ...
-
-    def should_revise_concept(state: GraphState):
-        last_eval = state.get("evaluations", [])[-1] if state.get("evaluations") else None
-        if last_eval and last_eval["node"] == "concept" and last_eval["status"] == "REVISE":
-            return "concept"
-        return "script"
-
-    def should_revise_script(state: GraphState):
-        last_eval = state.get("evaluations", [])[-1] if state.get("evaluations") else None
-        if last_eval and last_eval["node"] == "script" and last_eval["status"] == "REVISE":
-            return "script"
-        # APPROVED -> Fan out into parallel agents
-        return ["visuals", "metadata"]
 
     # Set entry point
     workflow.set_entry_point("concept")
 
-    # Add edges
-    workflow.add_edge("concept", "critic")
-    workflow.add_conditional_edges(
-        "critic",
-        should_revise_concept,
-        {
-            "concept": "concept",
-            "script": "script"
-        }
-    )
-    
-    workflow.add_edge("script", "critic")
-    workflow.add_conditional_edges(
-        "critic",
-        should_revise_script,
-        {
-            "script": "script",
-            "visuals": "visuals",
-            "metadata": "metadata"
-        }
-    )
+    # Add linear edges
+    workflow.add_edge("concept", "script")
+    workflow.add_edge("script", ["visuals", "metadata"])
 
     # Join the parallel branches into production steps
     workflow.add_edge(["visuals", "metadata"], "image_gen")
