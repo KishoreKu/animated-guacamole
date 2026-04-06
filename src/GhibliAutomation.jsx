@@ -607,6 +607,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
     { id: "metadata", label: "❋ YouTube Meta" },
     { id: "visuals", label: "◈ Prompts" },
     { id: "script", label: "✿ Script" },
+    { id: "bgm_prompt", label: "🎵 BGM Prompt" },
   ];
 
   return (
@@ -699,9 +700,15 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
                   <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
                     <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
                     {result.bgm_prompt && (
-                      <div style={{ padding: "8px 12px", background: "rgba(74, 184, 255, 0.1)", border: "1px solid rgba(74, 184, 255, 0.3)", borderRadius: 10, marginBottom: 12 }}>
+                      <div style={{ padding: "8px 12px", background: "rgba(74, 184, 255, 0.1)", border: "1px solid rgba(74, 184, 255, 0.3)", borderRadius: 10, marginBottom: 12, position: "relative" }}>
                         <div style={{ fontSize: 10, color: "rgba(74, 184, 255, 0.8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>BGM Atmospheric Prompt</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", fontStyle: "italic", lineHeight: 1.4 }}>" {result.bgm_prompt} "</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", fontStyle: "italic", lineHeight: 1.4, paddingRight: 30 }}>" {result.bgm_prompt} "</div>
+                        <button onClick={() => {
+                          navigator.clipboard.writeText(result.bgm_prompt);
+                          alert("BGM Prompt Copied!");
+                        }} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", color: "rgba(74, 184, 255, 0.8)", cursor: "pointer", padding: 4 }}>
+                          <Share2 size={16} />
+                        </button>
                       </div>
                     )}
                     <div style={{ marginTop: "auto" }}>
@@ -758,6 +765,21 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 1.8, margin: 0, fontFamily: "'SF Mono', monospace", background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16 }}>
             {typeof result.metadata === 'object' ? JSON.stringify(result.metadata, null, 2) : (result.metadata || "◈ Metadata not available.")}
           </pre>
+        )}
+
+        {/* BGM TAB */}
+        {tab === "bgm_prompt" && (
+          <div style={{ padding: 20, background: "rgba(0,0,0,0.2)", borderRadius: 16 }}>
+             <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 16, lineHeight: 1.6, fontStyle: "italic" }}>
+               "{result.bgm_prompt || result.metadata?.bgm_prompt || "No BGM prompt data."}"
+             </p>
+             <button onClick={() => {
+                navigator.clipboard.writeText(result.bgm_prompt || result.metadata?.bgm_prompt);
+                alert("BGM Prompt Copied!");
+              }} style={{ display: "inline-block", background: "rgba(74, 184, 255, 0.2)", color: "#4ab8ff", border: "1px solid #4ab8ff", padding: "10px 20px", borderRadius: 12, marginTop: 20, cursor: "pointer", fontWeight: 600 }}>
+                Copy Full BGM Prompt
+              </button>
+          </div>
         )}
       </div>
 

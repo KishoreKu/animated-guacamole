@@ -129,10 +129,13 @@ async def generate(request: Request):
                     "concept": accumulated_state.get("concept", ""),
                     "video_url": accumulated_state.get("video_url", ""),
                     "image_urls": accumulated_state.get("image_urls", []),
-                    "metadata": {"title": accumulated_state.get("metadata", ""), "tags": []},
-                    "script": accumulated_state.get("script", ""),
-                    "visuals": accumulated_state.get("visuals", ""),
-                    "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
+                    "metadata": {
+                        "title": accumulated_state.get("metadata", ""),
+                        "script": accumulated_state.get("script", ""),
+                        "visuals": accumulated_state.get("visuals", ""),
+                        "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
+                        "tags": []
+                    },
                     "source": "manual",
                     "user_id": user.id  # Track who made this
                 }
