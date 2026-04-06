@@ -1,20 +1,16 @@
 import os
 import time
 from typing import List
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 import vertexai
 from vertexai.preview.vision_models import ImageGenerationModel
 from google.cloud import texttospeech
 from google.cloud import storage
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
-def generate_images(prompts: List[str]) -> List[str]:
-    """
-    Generates images using Google Imagen via Vertex AI, with fallbacks.
-    Returns a list of local paths to the generated images.
-    """
-    vertexai.init(project="ghibli-studio-1775332583", location="us-central1")
-    
-    # Ordered list of models to try if quota is zero for the newer ones
+def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
+    """Helper for parallel image generation."""
     fallback_models = [
         "imagen-3.0-generate-001",
         "imagen-3.0-fast-generate-001",
@@ -22,95 +18,91 @@ def generate_images(prompts: List[str]) -> List[str]:
         "imagegeneration@005",
         "pollinations"
     ]
-    image_paths = []
+    
+    print(f"🎨 Painting scene {i+1}...")
+    path = f"scene_{session_id}_{i}.png"
+    
+    for model_id in fallback_models:
+        try:
+            if model_id == "pollinations":
+                import requests
+                from urllib.parse import quote
+                prompt_encoded = quote(f"Studio Ghibli style, soft watercolor aesthetic, high quality animation still: {prompt}")
+                url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=1280&height=720&nologo=true"
+                response = requests.get(url)
+                if response.status_code == 200:
+                    with open(path, 'wb') as f:
+                        f.write(response.content)
+                    return path
+                else:
+                    raise Exception(f"Pollinations returned status {response.status_code}")
+            
+            model = ImageGenerationModel.from_pretrained(model_id)
+            response = model.generate_images(
+                prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
+                number_of_images=1,
+                language="en",
+                aspect_ratio="16:9"
+            )
+            
+            images = list(response.images) if hasattr(response, 'images') else list(response)
+            if not images:
+                raise IndexError(f"Model {model_id} returned empty response.")
+                
+            images[0].save(location=path, include_generation_parameters=False)
+            return path
+            
+        except Exception as e:
+            err_str = str(e)
+            if any(x in err_str for x in ["429", "Quota", "range", "empty", "400", "404", "life", "pollinations"]):
+                print(f"⚠️ {model_id} failed for scene {i+1}. Falling back...")
+                continue
+            else:
+                raise e
+                
+    raise Exception(f"All models failed for scene {i+1}")
+
+def generate_images(prompts: List[str]) -> List[str]:
+    """
+    Generates images using Google Imagen via Vertex AI in parallel.
+    """
+    vertexai.init(project="ghibli-studio-1775332583", location="us-central1")
     session_id = str(int(time.time()))
     
-    for i, prompt in enumerate(prompts):
-        print(f"🎨 Painting scene {i+1}...")
-        success = False
-        
-        for model_id in fallback_models:
-            print(f"Trying model: {model_id}")
-            try:
-                path = f"scene_{session_id}_{i}.png"
-                
-                
-                if model_id == "pollinations":
-                    import requests
-                    from urllib.parse import quote
-                    print("⚠️ Using Pollinations.ai free fallback...")
-                    # Generate a unique seed or add resolution to avoid caching identical images
-                    prompt_encoded = quote(f"Studio Ghibli style, soft watercolor aesthetic, high quality animation still: {prompt}")
-                    url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=1280&height=720&nologo=true"
-                    response = requests.get(url)
-                    if response.status_code == 200:
-                        with open(path, 'wb') as f:
-                            f.write(response.content)
-                        image_paths.append(path)
-                        success = True
-                        break
-                    else:
-                        raise Exception(f"Pollinations returned status {response.status_code}")
-                
-                model = ImageGenerationModel.from_pretrained(model_id)
-                response = model.generate_images(
-                    prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
-                    number_of_images=1,
-                    language="en",
-                    aspect_ratio="16:9"
-                )
-                
-                # Convert to list since some ImageGenerationResponse versions don't support len()
-                images = list(response.images) if hasattr(response, 'images') else list(response)
-                
-                if not images or len(images) == 0:
-                    raise IndexError(f"Model {model_id} returned an empty response. Likely an aspect ratio or safety block.")
-                    
-                images[0].save(location=path, include_generation_parameters=False)
-                image_paths.append(path)
-                success = True
-                break
-            except Exception as e:
-                # Catch empty list errors, 429 quotas, 404 EOL, or 400 Bad Request (aspect ratio errors) and fall back
-                err_str = str(e)
-                if "429" in err_str or "Quota" in err_str or "out of range" in err_str or "empty" in err_str or "400" in err_str or "404" in err_str or "end of life" in err_str or "pollinations" in err_str.lower():
-                    print(f"⚠️ {model_id} failed with: {err_str}. Falling back...")
-                    continue
-                else:
-                    raise e
-                    
-        if not success:
-            raise Exception("All Vertex AI Imagen models failed due to Quota Limits. Please request quota increases in GCP.")
-            
-        time.sleep(1) # Prevent hammering the API too fast between prompts
-        
+    # Process up to 5 scenes in parallel to stay within reasonable quota limits
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        worker = partial(_generate_single_image, session_id=session_id)
+        # We need to maintain order, so we use executor.map or just a list of futures
+        image_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
+    
     return image_paths
+
+def _generate_single_audio(scene: str, i: int, session_id: str) -> str:
+    """Helper for parallel audio synthesis."""
+    from google.cloud import texttospeech
+    client = texttospeech.TextToSpeechClient()
+    narration = scene.split("Narration:")[-1].strip() if "Narration:" in scene else scene
+    input_text = texttospeech.SynthesisInput(text=narration)
+    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Neural2-F")
+    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+    
+    print(f"🎙️ Synthesizing narration for scene {i+1}...")
+    response = client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
+    
+    path = f"audio_{session_id}_{i}.mp3"
+    with open(path, "wb") as out:
+        out.write(response.audio_content)
+    return path
 
 def generate_audio(script_scenes: List[str]) -> List[str]:
     """
-    Converts script narration to audio using Google Cloud TTS.
-    Returns local paths to audio files.
+    Converts script narration to audio using Google Cloud TTS in parallel.
     """
-    client = texttospeech.TextToSpeechClient()
-    audio_paths = []
     session_id = str(int(time.time()))
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        worker = partial(_generate_single_audio, session_id=session_id)
+        audio_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(script_scenes)))
     
-    for i, scene in enumerate(script_scenes):
-        narration = scene.split("Narration:")[-1].strip() if "Narration:" in scene else scene
-        input_text = texttospeech.SynthesisInput(text=narration)
-        voice = texttospeech.VoiceSelectionParams(
-            language_code="en-US",
-            name="en-US-Neural2-F"
-        )
-        audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
-        
-        response = client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
-        
-        path = f"audio_{session_id}_{i}.mp3"
-        with open(path, "wb") as out:
-            out.write(response.audio_content)
-        audio_paths.append(path)
-        
     return audio_paths
 
 def stitch_video(image_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4"):

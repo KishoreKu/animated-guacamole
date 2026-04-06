@@ -1,5 +1,7 @@
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from backend.agents.base import BaseAgent
 from backend.state import GraphState
 from backend.tools.production_tools import generate_images, generate_audio, stitch_video, upload_to_gcs
@@ -19,10 +21,12 @@ class ProductionAgent(BaseAgent):
             
             prompts = prompts[:num_scenes]
             image_paths = generate_images(prompts)
-            image_urls = []
-            for path in image_paths:
-                url = upload_to_gcs(path, BUCKET_NAME)
-                image_urls.append(url)
+            
+            # Parallelize GCS Uploads
+            print(f"☁️ Uploading {len(image_paths)} scenes to GCS in parallel...")
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                uploader = partial(upload_to_gcs, bucket_name=BUCKET_NAME)
+                image_urls = list(executor.map(uploader, image_paths))
             
             return {
                 "local_image_paths": image_paths,
