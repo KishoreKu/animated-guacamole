@@ -41,13 +41,10 @@ def get_generations(limit: int = 20, user_id: str = None):
     try:
         query = supabase.table("generations").select("*")
         
-        if user_id:
-            # Show only this user's generations
-            query = query.eq("user_id", user_id)
-        else:
-            # Show public automated content (Reddit bot)
-            query = query.eq("source", "reddit")
-            
+        # If we wanted private galleries, we would filter by user_id here.
+        # But per user request: "make all images and videos available for all users"
+        # we will skip the filter and return everything.
+        
         response = query.order("created_at", desc=True).limit(limit).execute()
         return response.data
     except Exception as e:
