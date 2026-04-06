@@ -118,6 +118,8 @@ async def generate(request: Request):
                     "video_url": accumulated_state.get("video_url", ""),
                     "image_urls": accumulated_state.get("image_urls", []),
                     "metadata": {"title": accumulated_state.get("metadata", ""), "tags": []},
+                    "script": accumulated_state.get("script", ""),
+                    "visuals": accumulated_state.get("visuals", ""),
                     "source": "manual",
                     "user_id": user.id  # Track who made this
                 }

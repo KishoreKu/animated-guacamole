@@ -659,19 +659,21 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
                   {visualPromptsList[i] && (
                     <>
                       <button onClick={() => {
-                          const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
-                          const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
-                          navigator.clipboard.writeText(videoPrompt);
-                          alert("Video Prompt Copied!\\n\\n" + videoPrompt);
-                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
+                        if (!visualPromptsList[i]) return;
+                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                        const videoPrompt = `${basePrompt} -- subtle cinematic motion, slow panning, high quality animation.`;
+                        navigator.clipboard.writeText(videoPrompt);
+                        alert("Video Prompt Copied!\n\n" + videoPrompt);
+                      }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(255,255,255,0.15)"} onMouseLeave={e=>e.target.style.background="rgba(255,255,255,0.1)"}>
                         Copy Video Prompt
                       </button>
                       
                       <button onClick={() => {
-                          const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
-                          const bgmPrompt = `Emotional orchestral soundtrack, piano and sweeping strings, Joe Hisaishi and Studio Ghibli style, cinematic background music for an animated movie scene featuring: ${basePrompt}`;
-                          navigator.clipboard.writeText(bgmPrompt);
-                          alert("BGM Prompt Copied!\\n\\n" + bgmPrompt);
+                        if (!visualPromptsList[i]) return;
+                        const basePrompt = visualPromptsList[i].replace(/^[\d\.\-\s]+/, '');
+                        const bgmPrompt = `Emotional orchestral soundtrack, piano and sweeping strings, Joe Hisaishi and Studio Ghibli style, cinematic background music for an animated movie scene featuring: ${basePrompt}`;
+                        navigator.clipboard.writeText(bgmPrompt);
+                        alert("BGM Prompt Copied!\n\n" + bgmPrompt);
                       }} style={{ display: "block", width: "100%", textAlign: "center", background: "rgba(189,147,249,0.2)", color: "#bd93f9", border: "1px solid rgba(189,147,249,0.3)", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, marginTop: 8, cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(189,147,249,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(189,147,249,0.2)"}>
                         Copy BGM Prompt
                       </button>
@@ -686,7 +688,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
         )}
         {tab === "script" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
-            {result.script}
+            {result.script || "◈ Creative script data not available for this archived generation."}
           </pre>
         )}
         {tab === "visuals" && (
@@ -703,13 +705,13 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
               </button>
             </div>
             <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
-              {result.visuals}
+              {result.visuals || "◈ Visual prompt library not available for this archived generation."}
             </pre>
           </div>
         )}
         {tab === "metadata" && (
-          <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
-            {result.metadata}
+          <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 14, lineHeight: 1.8, margin: 0, fontFamily: "'SF Mono', monospace", background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16 }}>
+            {typeof result.metadata === 'object' ? JSON.stringify(result.metadata, null, 2) : (result.metadata || "◈ Metadata not available.")}
           </pre>
         )}
       </div>
