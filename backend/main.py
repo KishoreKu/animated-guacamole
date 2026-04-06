@@ -96,6 +96,7 @@ async def generate(request: Request):
         "visuals": "",
         "metadata": "",
         "logs": [f"🎬 Pipeline started for topic: '{topic}'"],
+        "evaluations": [],
         "status": "running"
     }
 

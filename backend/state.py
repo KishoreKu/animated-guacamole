@@ -18,4 +18,5 @@ class GraphState(TypedDict):
     video_url: str
     logs: Annotated[List[str], operator.add]
     messages: Annotated[List, add_messages]
+    evaluations: List[dict] # List of {node: str, score: int, feedback: str}
     status: str # idle | running | done | error
