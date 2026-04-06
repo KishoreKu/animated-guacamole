@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 from typing import Optional
@@ -5,7 +6,7 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.orchestrator import create_orchestrator
-from backend.database import get_generations, save_generation
+from backend.database import get_generations, save_generation, supabase
 from backend.tasks import perform_reddit_batch
 from dotenv import load_dotenv
 
@@ -24,7 +25,25 @@ app.add_middleware(
 
 orchestrator = create_orchestrator()
 
-# --- NEW ENDPOINTS ---
+# --- AUTH HELPER ---
+
+async def get_current_user(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
+    
+    token = auth_header.split(" ")[1]
+    try:
+        # Verify the token with Supabase
+        res = supabase.auth.get_user(token)
+        if not res.user:
+            raise HTTPException(status_code=401, detail="Invalid user session")
+        return res.user
+    except Exception as e:
+        print(f"Auth error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
+# --- ENDPOINTS ---
 
 @app.get("/")
 def root():
@@ -35,11 +54,12 @@ def health():
     return {"status": "ok"}
 
 @app.get("/generations")
-def fetch_generations(limit: int = 20):
+async def fetch_generations(request: Request, limit: int = 20):
     """
-    Fetches past generation history.
+    Fetches past generation history for the logged-in user.
     """
-    data = get_generations(limit=limit)
+    user = await get_current_user(request)
+    data = get_generations(limit=limit, user_id=user.id)
     return {"data": data}
 
 @app.post("/cron/reddit")
@@ -48,22 +68,20 @@ async def trigger_reddit_batch(request: Request, background_tasks: BackgroundTas
     Cron-compatible endpoint for Reddit batch processing.
     Security: Check for X-CRON-TOKEN to prevent public trigger.
     """
-    # Simple security token check
     cron_token = request.headers.get("X-CRON-TOKEN")
     expected_token = os.getenv("CRON_SECRET_TOKEN", "ghibli-dev-token")
     
     if cron_token != expected_token:
         raise HTTPException(status_code=401, detail="Unauthorized cron trigger")
     
-    # Run Reddit batch in the background to avoid timing out the HTTP response
     background_tasks.add_task(perform_reddit_batch)
-    
     return {"status": "started", "message": "Reddit automation batch is running in the background."}
 
 # --- GENERATION LOGIC ---
 
 @app.post("/generate")
 async def generate(request: Request):
+    user = await get_current_user(request)
     data = await request.json()
     topic = data.get("topic", "Enchanted Forest")
     num_scenes = data.get("numScenes", 5)
@@ -93,7 +111,6 @@ async def generate(request: Request):
                 await asyncio.sleep(0.1)
             
             # --- PERSISTENCE ---
-            # Save manual generation to Supabase once complete or if it has images
             if accumulated_state.get("image_urls"):
                 db_data = {
                     "topic": accumulated_state.get("topic"),
@@ -101,7 +118,8 @@ async def generate(request: Request):
                     "video_url": accumulated_state.get("video_url", ""),
                     "image_urls": accumulated_state.get("image_urls", []),
                     "metadata": {"title": accumulated_state.get("metadata", ""), "tags": []},
-                    "source": "manual"
+                    "source": "manual",
+                    "user_id": user.id  # Track who made this
                 }
                 save_generation(db_data)
 
@@ -114,5 +132,4 @@ async def generate(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    import os
     uvicorn.run(app, host="0.0.0.0", port=8000)

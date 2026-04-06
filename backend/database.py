@@ -15,7 +15,7 @@ def save_generation(data: dict):
     """
     Saves a generation record to Supabase.
     Table: generations
-    Fields: topic, concept, video_url, image_urls, metadata, source
+    Fields: topic, concept, video_url, image_urls, metadata, source, user_id
     """
     if not supabase:
         print("⚠️ Supabase not configured. Skipping save.")
@@ -28,20 +28,27 @@ def save_generation(data: dict):
         print(f"❌ Error saving to Supabase: {e}")
         return None
 
-def get_generations(limit: int = 20):
+def get_generations(limit: int = 20, user_id: str = None):
     """
     Fetches recent generations from Supabase.
+    If user_id is provided, filters for that user's private gallery.
+    Otherwise, returns public/automated generations.
     """
     if not supabase:
         print("⚠️ Supabase not configured. Returning empty list.")
         return []
         
     try:
-        response = supabase.table("generations") \
-            .select("*") \
-            .order("created_at", desc=True) \
-            .limit(limit) \
-            .execute()
+        query = supabase.table("generations").select("*")
+        
+        if user_id:
+            # Show only this user's generations
+            query = query.eq("user_id", user_id)
+        else:
+            # Show public automated content (Reddit bot)
+            query = query.eq("source", "reddit")
+            
+        response = query.order("created_at", desc=True).limit(limit).execute()
         return response.data
     except Exception as e:
         print(f"❌ Error fetching from Supabase: {e}")
