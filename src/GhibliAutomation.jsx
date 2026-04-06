@@ -14,6 +14,9 @@ const THEMES = ["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain S
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const API_BASE = import.meta.env.VITE_API_URL || 
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://ghibli-backend-bskf4s232a-uc.a.run.app');
+
 const GhibliBackground = () => (
   <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
     <div style={{
@@ -162,7 +165,7 @@ export default function GhibliAutomation() {
     setPhase("gallery");
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generations", {
+      const response = await fetch(`${API_BASE}/generations`, {
         headers: {
           Authorization: `Bearer ${session?.access_token}`
         }
@@ -198,7 +201,7 @@ export default function GhibliAutomation() {
       let accumulatedState = { topic, concept: "", script: "", visuals: "", metadata: "", image_urls: [], audio_urls: [], video_url: "" };
       
       const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch("https://ghibli-backend-bskf4s232a-uc.a.run.app/generate", {
+      const response = await fetch(`${API_BASE}/generate`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -695,6 +698,12 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
                 result.image_urls.map((url, i) => (
                   <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
                     <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
+                    {result.bgm_prompt && (
+                      <div style={{ padding: "8px 12px", background: "rgba(74, 184, 255, 0.1)", border: "1px solid rgba(74, 184, 255, 0.3)", borderRadius: 10, marginBottom: 12 }}>
+                        <div style={{ fontSize: 10, color: "rgba(74, 184, 255, 0.8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>BGM Atmospheric Prompt</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", fontStyle: "italic", lineHeight: 1.4 }}>" {result.bgm_prompt} "</div>
+                      </div>
+                    )}
                     <div style={{ marginTop: "auto" }}>
                       <a href={url} download={`scene_${i+1}.png`} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", background: "rgba(74,255,138,0.2)", color: "#4aff8a", textDecoration: "none", padding: "8px", borderRadius: 8, fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, transition: "background 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>Download Image</a>
                       {visualPromptsList[i] && (

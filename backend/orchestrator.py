@@ -29,16 +29,20 @@ def create_orchestrator():
     workflow.set_entry_point("concept")
 
     # Add linear edges
+    # Parallel branches: metadata and visuals
     workflow.add_edge("concept", "script")
     workflow.add_edge("script", "visuals")
     workflow.add_edge("script", "metadata")
-
-    # Join the parallel branches into production steps
+    
+    # Asset pipeline: visuals -> image_gen -> audio_gen -> finalize_video
     workflow.add_edge("visuals", "image_gen")
-    workflow.add_edge("metadata", "image_gen")
     workflow.add_edge("image_gen", "audio_gen")
     workflow.add_edge("audio_gen", "finalize_video")
     workflow.add_edge("finalize_video", END)
+    
+    # metadata can finish on its own or join finalize_video if you want to wait. 
+    # Let's let it finish naturally so other agents don't wait for it if they are faster.
+    workflow.add_edge("metadata", END)
 
     return workflow.compile()
 

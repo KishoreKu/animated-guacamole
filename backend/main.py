@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from backend.orchestrator import create_orchestrator
 from backend.database import get_generations, save_generation, supabase
 from backend.tasks import perform_reddit_batch
@@ -22,6 +23,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files for the archive
+public_dir = os.path.join(os.path.dirname(__file__), "public")
+if not os.path.exists(public_dir):
+    os.makedirs(public_dir)
+app.mount("/archive", StaticFiles(directory=os.path.join(public_dir, "archive")), name="archive")
 
 orchestrator = create_orchestrator()
 

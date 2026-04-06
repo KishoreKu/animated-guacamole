@@ -1,5 +1,6 @@
 import os
 import time
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from backend.agents.base import BaseAgent
@@ -28,10 +29,19 @@ class ProductionAgent(BaseAgent):
                 uploader = partial(upload_to_gcs, bucket_name=BUCKET_NAME)
                 image_urls = list(executor.map(uploader, image_paths))
             
+            # Archiving locally for the Public Archive
+            archive_dir = os.path.join(os.getcwd(), "backend", "public", "archive")
+            if not os.path.exists(archive_dir):
+                os.makedirs(archive_dir)
+            
+            for ip in image_paths:
+                if os.path.exists(ip):
+                    shutil.copy2(ip, os.path.join(archive_dir, os.path.basename(ip)))
+            
             return {
                 "local_image_paths": image_paths,
                 "image_urls": image_urls,
-                "logs": [f"🎨 Generated and uploaded {len(image_urls)} custom Ghibli scenes."]
+                "logs": [f"🎨 Generated, uploaded to GCS, and archived {len(image_urls)} scenes locally."]
             }
         except Exception as e:
             return {"logs": [f"🚨 Image generation error: {str(e)}"], "status": "error"}
