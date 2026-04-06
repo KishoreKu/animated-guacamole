@@ -119,6 +119,7 @@ export default function GhibliAutomation() {
   const logRef = useRef(null);
   const [galleryData, setGalleryData] = useState([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
+  const [selectedGalleryItem, setSelectedGalleryItem] = useState(null);
 
   const addLog = (msg) => setLogLines(l => [...l, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
@@ -290,6 +291,7 @@ export default function GhibliAutomation() {
   const reset = () => {
     setPhase("input");
     setFinalResult(null);
+    setSelectedGalleryItem(null);
     setAgentOutputs({});
     setAgentStatuses({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
     setLogLines([]);
@@ -506,14 +508,28 @@ export default function GhibliAutomation() {
 
         {/* GALLERY PHASE */}
         {phase === "gallery" && (
-          <GalleryPanel data={galleryData} loading={loadingGallery} onReset={reset} />
+          selectedGalleryItem ? (
+            <ResultPanel 
+              result={selectedGalleryItem} 
+              onReset={() => setSelectedGalleryItem(null)} 
+              parseMetadata={parseMetadata}
+              isGalleryView={true}
+            />
+          ) : (
+            <GalleryPanel 
+              data={galleryData} 
+              loading={loadingGallery} 
+              onReset={reset} 
+              onViewScenes={(item) => setSelectedGalleryItem(item)}
+            />
+          )
         )}
       </div>
     </div>
   );
 }
 
-function GalleryPanel({ data, loading, onReset }) {
+function GalleryPanel({ data, loading, onReset, onViewScenes }) {
   return (
     <div style={{ animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 30 }}>
@@ -551,7 +567,7 @@ function GalleryPanel({ data, loading, onReset }) {
                     Watch Video
                   </a>
                 )}
-                <button onClick={() => alert("Detailed view coming soon!")} style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 12, fontSize: 14 }}>
+                <button onClick={() => onViewScenes(item)} style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
                   View Scenes
                 </button>
               </div>
@@ -563,7 +579,7 @@ function GalleryPanel({ data, loading, onReset }) {
   );
 }
 
-function ResultPanel({ result, onReset, parseMetadata }) {
+function ResultPanel({ result, onReset, parseMetadata, isGalleryView }) {
   const [tab, setTab] = useState("images");
   const meta = parseMetadata(result.metadata);
   
@@ -695,7 +711,7 @@ function ResultPanel({ result, onReset, parseMetadata }) {
         cursor: "pointer", fontFamily: "'Outfit', sans-serif", letterSpacing: 1,
         transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
       }}>
-        Create Another Masterpiece
+        {isGalleryView ? "← Back to Archive" : "Create Another Masterpiece"}
       </button>
     </div>
   );
