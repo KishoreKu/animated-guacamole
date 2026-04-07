@@ -111,6 +111,8 @@ export default function GhibliAutomation() {
   const [user, setUser] = useState(null);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [authError, setAuthError] = useState(null);
+  const [currentThemes, setCurrentThemes] = useState(["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain Spirit", "Abandoned Station", "Rainy Rooftop"]);
+  const [isRefreshingThemes, setIsRefreshingThemes] = useState(false);
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
@@ -125,6 +127,19 @@ export default function GhibliAutomation() {
   const [galleryData, setGalleryData] = useState([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState(null);
+
+  const refreshThemes = async () => {
+    setIsRefreshingThemes(true);
+    try {
+      const response = await fetch(`${API_BASE}/suggest_themes`);
+      const data = await response.json();
+      if (data.themes) setCurrentThemes(data.themes);
+    } catch (e) {
+      console.error("Failed to refresh themes", e);
+    } finally {
+      setIsRefreshingThemes(false);
+    }
+  };
 
   const addLog = (msg) => setLogLines(l => [...l, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
