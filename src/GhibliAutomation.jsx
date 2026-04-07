@@ -346,7 +346,10 @@ export default function GhibliAutomation() {
       return {
         title: raw.title || "",
         tags: Array.isArray(raw.tags) ? raw.tags.join(", ") : (raw.tags || ""),
-        thumbnail: raw.thumbnail || ""
+        thumbnail: raw.thumbnail || "",
+        script: raw.script || "",
+        visuals: raw.visuals || "",
+        bgm_prompt: raw.bgm_prompt || ""
       };
     }
     // Otherwise parse string from pipeline
@@ -723,8 +726,13 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
   const [showCinematic, setShowCinematic] = useState(false);
   const meta = parseMetadata(result.metadata);
   
-  const visualPromptsList = (typeof result.visuals === 'string') 
-    ? result.visuals.split('\n').filter(line => line.trim() && (line.trim().charAt(0) >= '0' && line.trim().charAt(0) <= '9' || line.trim().startsWith('-')))
+  // SUPPORT FOR NEW RICH METADATA (JSONB)
+  const displayScript = result.script || meta.script || "◈ Creative script data not available for this archived generation.";
+  const displayVisuals = result.visuals || meta.visuals || "";
+  const displayBgmPrompt = result.bgm_prompt || meta.bgm_prompt || (result.metadata?.bgm_prompt) || "";
+
+  const visualPromptsList = (typeof displayVisuals === 'string') 
+    ? displayVisuals.split('\n').filter(line => line.trim() && (line.trim().charAt(0) >= '0' && line.trim().charAt(0) <= '9' || line.trim().startsWith('-')))
     : [];
 
   const tabs = [
@@ -848,12 +856,12 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
                 result.image_urls.map((url, i) => (
                   <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
                     <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
-                    {result.bgm_prompt && (
+                    {(displayBgmPrompt) && (
                       <div style={{ padding: "8px 12px", background: "rgba(74, 184, 255, 0.1)", border: "1px solid rgba(74, 184, 255, 0.3)", borderRadius: 10, marginBottom: 12, position: "relative" }}>
                         <div style={{ fontSize: 10, color: "rgba(74, 184, 255, 0.8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>BGM Atmospheric Prompt</div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", fontStyle: "italic", lineHeight: 1.4, paddingRight: 30 }}>" {result.bgm_prompt} "</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", fontStyle: "italic", lineHeight: 1.4, paddingRight: 30 }}>" {displayBgmPrompt} "</div>
                         <button onClick={() => {
-                          navigator.clipboard.writeText(result.bgm_prompt);
+                          navigator.clipboard.writeText(displayBgmPrompt);
                           alert("BGM Prompt Copied!");
                         }} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", color: "rgba(74, 184, 255, 0.8)", cursor: "pointer", padding: 4 }}>
                           <Share2 size={16} />
@@ -890,7 +898,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
         {/* SCRIPT TAB */}
         {tab === "script" && (
           <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
-            {result.script || "◈ Creative script data not available for this archived generation."}
+            {displayScript}
           </pre>
         )}
 
@@ -902,14 +910,14 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
                 ◈ Visual Prompt Library
               </div>
               <button onClick={() => {
-                navigator.clipboard.writeText(result.visuals);
+                navigator.clipboard.writeText(displayVisuals);
                 alert("Prompts copied to clipboard!");
               }} style={{ background: "rgba(74,255,138,0.2)", border: "1px solid rgba(74,255,138,0.5)", color: "#4aff8a", padding: "6px 16px", borderRadius: 100, cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 13, transition: "all 0.2s" }} onMouseEnter={e=>e.target.style.background="rgba(74,255,138,0.3)"} onMouseLeave={e=>e.target.style.background="rgba(74,255,138,0.2)"}>
                 Copy All Prompts
               </button>
             </div>
-            <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.8, margin: 0, fontFamily: "'Inter', sans-serif" }}>
-              {result.visuals || "◈ Visual prompt library not available for this archived generation."}
+            <pre style={{ whiteSpace: "pre-wrap", color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 1.6, margin: 0, fontFamily: "'Inter', sans-serif", background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16 }}>
+              {displayVisuals || "Prompts not available."}
             </pre>
           </div>
         )}
@@ -925,10 +933,10 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
         {tab === "bgm_prompt" && (
           <div style={{ padding: 20, background: "rgba(0,0,0,0.2)", borderRadius: 16 }}>
              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 16, lineHeight: 1.6, fontStyle: "italic" }}>
-               "{result.bgm_prompt || result.metadata?.bgm_prompt || "No BGM prompt data."}"
+               "{displayBgmPrompt || "No BGM prompt data available."}"
              </p>
              <button onClick={() => {
-                navigator.clipboard.writeText(result.bgm_prompt || result.metadata?.bgm_prompt);
+                navigator.clipboard.writeText(displayBgmPrompt);
                 alert("BGM Prompt Copied!");
               }} style={{ display: "inline-block", background: "rgba(74, 184, 255, 0.2)", color: "#4ab8ff", border: "1px solid #4ab8ff", padding: "10px 20px", borderRadius: 12, marginTop: 20, cursor: "pointer", fontWeight: 600 }}>
                 Copy Full BGM Prompt
