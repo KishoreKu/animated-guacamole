@@ -166,6 +166,9 @@ async def generate(request: Request):
                 
                 # --- PERSISTENCE ---
                 if accumulated_state.get("video_url") or accumulated_state.get("image_urls"):
+                    # Use provided style or default to ghibli
+                    current_style = accumulated_state.get("style", "ghibli")
+                    
                     db_data = {
                         "topic": accumulated_state.get("topic"),
                         "concept": accumulated_state.get("concept", ""),
@@ -175,8 +178,10 @@ async def generate(request: Request):
                             "title": accumulated_state.get("metadata", ""),
                             "script": accumulated_state.get("script", ""),
                             "visuals": accumulated_state.get("visuals", ""),
-                            "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
-                            "tags": []
+                            "bgm_prompt": accumulated_state.get("bgm_prompt", "") or accumulated_state.get("music_mood", "peaceful_watercolor"),
+                            "style": current_style,
+                            "num_scenes": accumulated_state.get("num_scenes", 5),
+                            "tags": [current_style, "cinematic", accumulated_state.get("topic")]
                         },
                         "source": "manual",
                         "user_id": user.id
