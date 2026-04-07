@@ -25,6 +25,7 @@ class ProductionAgent(BaseAgent):
             # --- VIDEO VS IMAGE MODE ---
             if state.get('generate_video', False):
                 from backend.tools.production_tools import generate_video_clips, generate_audio, stitch_video, upload_to_gcs
+                from moviepy.editor import VideoFileClip
                 
                 # 1. Generate real moving video clips
                 asset_paths = generate_video_clips(prompts)
@@ -37,19 +38,30 @@ class ProductionAgent(BaseAgent):
                 video_filename = f"final_{int(time.time())}.mp4"
                 local_video = stitch_video(asset_paths, audio_paths, video_filename)
                 
-                # 4. Upload to GCS
-                public_url = upload_to_gcs(local_video, BUCKET_NAME)
+                # 4. Upload Final Video to GCS
+                public_video_url = upload_to_gcs(local_video, BUCKET_NAME)
                 
-                # Archive the final video locally for the gallery
+                # 5. Generate and Upload Thumbnail for Gallery
+                thumb_path = f"thumb_{int(time.time())}.png"
+                try:
+                    # Capture frame at 0.5s or start
+                    clip = VideoFileClip(asset_paths[0])
+                    clip.save_frame(thumb_path, t=0.1)
+                    public_thumb_url = upload_to_gcs(thumb_path, BUCKET_NAME)
+                except Exception as thumb_err:
+                    print(f"⚠️ Thumbnail generation failed: {thumb_err}")
+                    public_thumb_url = public_video_url # Fallback if error
+                
+                # Archive locally as well
                 archive_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "archive")
                 os.makedirs(archive_dir, exist_ok=True)
                 shutil.copy(local_video, os.path.join(archive_dir, os.path.basename(local_video)))
                 
                 return {
-                    "video_url": public_url,
-                    "image_urls": [public_url], # In video mode, video is the display asset
+                    "video_url": public_video_url,
+                    "image_urls": [public_thumb_url], 
                     "status": "completed",
-                    "logs": state["logs"] + ["🎥 True AI cinematic video generated and archived!"]
+                    "logs": state["logs"] + ["🎥 True AI cinematic video and cloud thumbnail generated!"]
                 }
             else:
                 from backend.tools.production_tools import generate_images, generate_audio, stitch_video, upload_to_gcs
@@ -65,23 +77,24 @@ class ProductionAgent(BaseAgent):
                 video_filename = f"final_{int(time.time())}.mp4"
                 local_video = stitch_video(image_paths, audio_paths, video_filename)
                 
-                # 4. Upload to GCS
-                public_url = upload_to_gcs(local_video, BUCKET_NAME)
+                # 4. Upload all to GCS
+                public_video_url = upload_to_gcs(local_video, BUCKET_NAME)
+                image_gcs_urls = []
+                for img in image_paths:
+                    image_gcs_urls.append(upload_to_gcs(img, BUCKET_NAME))
                 
-                # Archive results (images and video)
+                # Archive locally
                 archive_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "archive")
                 os.makedirs(archive_dir, exist_ok=True)
                 for img in image_paths:
                     shutil.copy(img, os.path.join(archive_dir, os.path.basename(img)))
                 shutil.copy(local_video, os.path.join(archive_dir, os.path.basename(local_video)))
                 
-                image_archive_urls = [f"/archive/{os.path.basename(img)}" for img in image_paths]
-                
                 return {
-                    "video_url": public_url,
-                    "image_urls": image_archive_urls,
+                    "video_url": public_video_url,
+                    "image_urls": image_gcs_urls,
                     "status": "completed",
-                    "logs": state["logs"] + ["✅ Static Ghibli video generated and archived!"]
+                    "logs": state["logs"] + ["✅ Static Ghibli gallery and video hosted in Cloud!"]
                 }
                 
         except Exception as e:
