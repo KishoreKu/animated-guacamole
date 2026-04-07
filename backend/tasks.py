@@ -8,38 +8,41 @@ from backend.database import save_generation
 
 def fetch_top_reddit_prompts(subreddit_name: str = "WritingPrompts", limit: int = 2):
     """
-    Connects to Reddit and fetches the top X posts from a specific subreddit today.
+    Connects to Reddit via public RSS Feed (No API keys required!).
     """
-    import praw
-    client_id = os.getenv("REDDIT_CLIENT_ID")
-    client_secret = os.getenv("REDDIT_CLIENT_SECRET")
-    user_agent = os.getenv("REDDIT_USER_AGENT", "GhibliBot/1.0 by AutoFactory")
-
-    if not client_id or not client_secret:
-        print(f"⚠️ Missing REDDIT_CLIENT_ID or REDDIT_CLIENT_SECRET. Skipping {subreddit_name}.")
-        return []
-        
+    import requests
+    import xml.etree.ElementTree as ET
+    from urllib.parse import quote
+    
+    url = f"https://www.reddit.com/r/{subreddit_name}/top/.rss?t=day&limit={limit+5}"
+    # Reddit RSS needs a unique User-Agent or it will block you
+    headers = {'User-Agent': 'GhibliBot/1.0 by AutoFactory (Public RSS)'}
+    
     try:
-        reddit = praw.Reddit(
-            client_id=client_id,
-            client_secret=client_secret,
-            user_agent=user_agent
-        )
+        print(f"📡 Fetching top prompts from r/{subreddit_name} (via RSS)...")
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            print(f"⚠️ RSS Feed failed for {subreddit_name} (Status: {response.status_code}).")
+            return []
 
-        print(f"📡 Fetching top {limit} prompts from r/{subreddit_name}...")
-        prompts = []
-        subreddit = reddit.subreddit(subreddit_name)
+        # Parse the XML (RSS is an Atom feed)
+        root = ET.fromstring(response.content)
+        # Atom namespaces
+        ns = {'atom': 'http://www.w3.org/2005/Atom'}
         
-        for submission in subreddit.top(time_filter="day", limit=limit + 5):
-            if not submission.stickied and len(submission.title) > 20:
-                clean_title = submission.title.replace("[WP]", "").replace("[RF]", "").strip()
+        prompts = []
+        for entry in root.findall('atom:entry', ns):
+            title = entry.find('atom:title', ns).text
+            # Skip noise and short titles
+            if "[WP]" in title or "[RF]" in title or len(title) > 20:
+                clean_title = title.replace("[WP]", "").replace("[RF]", "").strip()
                 prompts.append(clean_title)
                 if len(prompts) >= limit:
                     break
-                    
+        
         return prompts
     except Exception as e:
-        print(f"❌ Error fetching from r/{subreddit_name}: {e}")
+        print(f"❌ RSS Error for r/{subreddit_name}: {e}")
         return []
 
 async def run_generation_pipeline(prompt: str, source: str = "manual", num_scenes: int = 5, generate_video: bool = True):
