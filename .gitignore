@@ -12,3 +12,10 @@ dist/
 
 .gemini/
 gha-creds-*.json
+
+# Media Assets (Auto-generated)
+*.mp4
+*.mp3
+*.png
+backend/public/archive/*
+!backend/public/archive/.gitkeep
