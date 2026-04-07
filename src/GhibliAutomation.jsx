@@ -579,6 +579,7 @@ export default function GhibliAutomation() {
               loading={loadingGallery} 
               onReset={reset} 
               onViewScenes={(item) => setSelectedGalleryItem(item)}
+              handleDownload={handleDownload}
             />
           )
         )}
@@ -587,7 +588,7 @@ export default function GhibliAutomation() {
   );
 }
 
-function GalleryPanel({ data, loading, onReset, onViewScenes }) {
+function GalleryPanel({ data, loading, onReset, onViewScenes, handleDownload }) {
   return (
     <div style={{ animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 30 }}>
@@ -621,9 +622,12 @@ function GalleryPanel({ data, loading, onReset, onViewScenes }) {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 {item.video_url && (
-                  <a href={item.video_url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", background: "linear-gradient(135deg, #4ab8ff, #4aff8a)", color: "#000", padding: "10px", borderRadius: 12, textDecoration: "none", fontSize: 14, fontWeight: 600 }}>
-                    Watch Video
-                  </a>
+                  <button 
+                    onClick={() => handleDownload(item.video_url, `ghibli_video_${idx}.mp4`)}
+                    style={{ flex: 1, textAlign: "center", background: "linear-gradient(135deg, #4ab8ff, #4aff8a)", border: "none", color: "#000", padding: "10px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Download MP4
+                  </button>
                 )}
                 <button onClick={() => onViewScenes(item)} style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
                   View Scenes
@@ -714,6 +718,30 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
           </button>
         )}
       </div>
+
+      {/* CINEMATIC VIDEO PLAYER (If available) */}
+      {result.video_url && result.video_url !== "ERROR" && (
+        <div style={{
+          background: "rgba(0,0,0,0.4)", borderRadius: 24, padding: 20, marginBottom: 24,
+          border: "1px solid rgba(74, 184, 255, 0.3)", boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: "#4ab8ff", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>
+              🎞️ Cinematic Masterpiece (Veo Generated)
+            </div>
+            <button 
+              onClick={() => handleDownload(result.video_url, `ghibli_masterpiece.mp4`)}
+              style={{ background: "rgba(74, 184, 255, 0.2)", color: "#4ab8ff", border: "1px solid #4ab8ff", padding: "6px 16px", borderRadius: 100, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            >
+              Download Full MP4
+            </button>
+          </div>
+          <video controls style={{ width: "100%", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+            <source src={result.video_url} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div style={{
