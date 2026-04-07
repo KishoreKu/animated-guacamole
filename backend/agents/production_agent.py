@@ -27,6 +27,15 @@ class ProductionAgent(BaseAgent):
             # 2. Parse Narration Blocks (Extracting only 'Narration:' content)
             # This ensures extra lines or titles don't create audio clips
             narration_blocks = re.findall(r"Narration:\s*(.*?)(?=\nSCENE|\nVisual|\n$|$)", state["script"], re.DOTALL | re.IGNORECASE)
+            
+            # --- SCENE SCRUBBER ---
+            # Remove "Scene 1", "Scene 2", etc. if they hallucinate into the narration
+            cleaned_narrations = []
+            for nb in narration_blocks:
+                cleaned = re.sub(r"^(Scene\s*\d+[:\-]?\s*)", "", nb.strip(), flags=re.IGNORECASE)
+                cleaned_narrations.append(cleaned)
+            narration_blocks = cleaned_narrations
+
             # Fallback if LLM deviates from 'Narration:' format
             if not narration_blocks or len(narration_blocks) < num_scenes:
                 print("⚠️ Narration parser fallback: splitting by scenes...")
@@ -34,9 +43,14 @@ class ProductionAgent(BaseAgent):
                 narration_blocks = []
                 for s in raw_scenes:
                     if "Narration:" in s:
-                        narration_blocks.append(s.split("Narration:")[-1].strip())
+                        text = s.split("Narration:")[-1].strip()
+                        # Scrub here too
+                        text = re.sub(r"^(Scene\s*\d+[:\-]?\s*)", "", text, flags=re.IGNORECASE)
+                        narration_blocks.append(text)
                     else:
-                        narration_blocks.append(s.strip())
+                        text = s.strip()
+                        text = re.sub(r"^(Scene\s*\d+[:\-]?\s*)", "", text, flags=re.IGNORECASE)
+                        narration_blocks.append(text)
 
             # Clamp to requested scene count
             prompts = prompts[:num_scenes]

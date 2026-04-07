@@ -185,13 +185,14 @@ MOOD_LIBRARY = {
 }
 
 def download_bgm(mood: str) -> str:
-    """Downloads the BGM for the given mood and returns local path."""
+    """Downloads the BGM for the given mood to /tmp and returns local path."""
     import requests
+    import tempfile
     url = MOOD_LIBRARY.get(mood, MOOD_LIBRARY["peaceful_watercolor"])
-    local_path = f"bgm_{mood}.mp3"
+    local_path = os.path.join(tempfile.gettempdir(), f"bgm_{mood}.mp3")
     if not os.path.exists(local_path):
         print(f"🎵 Downloading Ghibli Theme: {mood}...")
-        r = requests.get(url, stream=True)
+        r = requests.get(url, stream=True, timeout=10)
         with open(local_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk: f.write(chunk)
@@ -249,7 +250,7 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     if music_mood:
         try:
             bgm_path = download_bgm(music_mood)
-            bgm_clip = AudioFileClip(bgm_path).volumex(0.15) # Duck to 15%
+            bgm_clip = AudioFileClip(bgm_path).volumex(0.25) # Boosted to 25% for better presence
             
             # Loop bgm if shorter than video
             if bgm_clip.duration < final_clip.duration:
@@ -262,9 +263,10 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
             
             # Composite Audio
             from moviepy.audio.AudioClip import CompositeAudioClip
-            new_audio = CompositeAudioClip([final_clip.audio, bgm_clip])
-            final_clip = final_clip.set_audio(new_audio)
-            print(f"🎼 Music Layered: {music_mood}")
+            if final_clip.audio:
+                new_audio = CompositeAudioClip([final_clip.audio, bgm_clip])
+                final_clip = final_clip.set_audio(new_audio)
+                print(f"🎼 Music Layered: {music_mood} (Volume: 25%)")
         except Exception as e:
             print(f"⚠️ Music mixing failed: {e}")
 
