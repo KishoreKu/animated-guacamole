@@ -79,66 +79,74 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
-def generate_video_clips(prompts: List[str]) -> List[str]:
+def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
     Generates moving video clips using Google Veo on Vertex AI.
     """
+    from backend.tools.style_manager import get_style_data
+    style_dna = get_style_data(style)
+    
     client = genai.Client(vertexai=True, project="ghibli-studio-1775332583", location="us-central1")
     session_id = str(int(time.time()))
     video_paths = []
     
     for i, prompt in enumerate(prompts):
-        print(f"🎬 Creating cinematic scene {i+1} with Veo...")
+        print(f"🎬 Creating {style_dna['name']} scene {i+1} with Veo...")
         try:
+            # Construct the cinematic prompt based on the universe DNA
+            veo_prompt = f"{style_dna['visual_rules']}, cinematic movement, high-fidelity: {prompt}"
+            
             # Start asynchronous video generation
             operation = client.models.generate_videos(
                 model="veo-3.1-generate-001",
-                prompt=f"Studio Ghibli style animation still, soft watercolor aesthetic, cinematic movement: {prompt}",
+                prompt=veo_prompt,
                 config=types.GenerateVideosConfig(
                     aspect_ratio="16:9",
                 )
             )
             
             # Poll for completion (video takes about 60-120 seconds)
-            while not operation.done:
+            max_retries = 18 # 3 minutes total
+            retries = 0
+            while not operation.done and retries < max_retries:
                 time.sleep(10)
-                # Correct SDK method for polling
-                operation = client.operations.get(operation)
+                # Ensure we pass the operation object or its name correctly
+                operation = client.operations.get(operation.name)
+                retries += 1
+                print(f"  ◈ Scene {i+1} animation in progress (Wait pulse {retries})...")
+
+            if not operation.done:
+                raise TimeoutError(f"Veo timed out after 3 minutes for scene {i+1}")
             
-            # Download the result from GCS to local tmp
+            # Use local path for final assembly
             path = f"scene_{session_id}_{i}.mp4"
             
-            # Check for Cloud Storage URI or Direct Bytes
+            # Extract video
             source = operation.response.generated_videos[0]
             uri = None
-            if hasattr(source, 'video'):
-                if hasattr(source.video, 'uri') and source.video.uri:
-                    uri = source.video.uri
-                elif hasattr(source.video, 'video_bytes') and source.video.video_bytes:
-                    print("💾 Extracting video bytes directly from response...")
-                    with open(path, 'wb') as f:
-                        f.write(source.video.video_bytes)
-                    video_paths.append(path)
-                    continue
-            
-            if not uri and hasattr(source, 'uri'):
+            if hasattr(source, 'video') and hasattr(source.video, 'uri'):
+                uri = source.video.uri
+            elif hasattr(source, 'uri'):
                 uri = source.uri
                 
             if uri:
-                print(f"📥 Downloading video from {uri}...")
-                bucket_name = uri.split("/")[2]
-                object_name = "/".join(uri.split("/")[3:])
+                print(f"📥 Downloading cinematic scene from {uri}...")
+                # Simple split to get bucket and object
+                parts = uri.replace("gs://", "").split("/")
+                bucket_name = parts[0]
+                object_name = "/".join(parts[1:])
+                
                 storage_client = storage.Client()
                 bucket = storage_client.bucket(bucket_name)
                 blob = bucket.blob(object_name)
                 blob.download_to_filename(path)
                 video_paths.append(path)
             else:
-                raise Exception("Produced video data not found in Veo response.")
+                raise Exception("Production response missing video URI.")
             
         except Exception as e:
-            print(f"⚠️ Veo failed for scene {i+1}: {e}. Falling back to image-to-video...")
-            # If video fails, generate an image and we'll use Ken Burns later
+            print(f"⚠️ Veo bypass for scene {i+1} (Fallback to Ken Burns): {str(e)}")
+            # Fallback to image generation
             img_path = _generate_single_image(prompt, i, session_id)
             video_paths.append(img_path)
             

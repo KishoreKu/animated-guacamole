@@ -14,10 +14,12 @@ class ProductionAgent(BaseAgent):
 
     async def generate_images_node(self, state: GraphState) -> GraphState:
         """
-        [ASYNC] Generates visual assets (images) using a background thread.
+        [ASYNC] Generates cinematic video clips using Google Veo via a background thread.
         """
         try:
             num_scenes = state.get('num_scenes', 5)
+            style = state.get('style', 'ghibli')
+            
             # Parse Visual Prompts
             prompts = [re.sub(r"^\d+[\.\)]\s*", "", line).strip() for line in state["visuals"].split("\n") if line.strip() and (line[0].isdigit() or line.startswith("-"))]
             if not prompts:
@@ -25,12 +27,14 @@ class ProductionAgent(BaseAgent):
             
             prompts = prompts[:num_scenes]
             
-            # Offload to thread to keep heartbeat alive
-            image_paths = await asyncio.to_thread(generate_images, prompts)
+            # Offload to the upgraded Veo engine (Universal Motion)
+            # This handles animation and auto-fallback to images if needed
+            from backend.tools.production_tools import generate_video_clips
+            video_clips = await asyncio.to_thread(generate_video_clips, prompts, style=style)
             
             return {
-                "local_image_paths": image_paths,
-                "logs": state["logs"] + [f"📸 {len(image_paths)} Ghibli-style frames captured in the cloud gallery."]
+                "local_image_paths": video_clips, # Reusing this field to hold video segments
+                "logs": state["logs"] + [f"🎬 {len(video_clips)} cinematic {style} clips rendered with Veo."]
             }
         except Exception as e:
             return {"logs": state["logs"] + [f"🚨 Image generation error: {str(e)}"], "status": "error"}
