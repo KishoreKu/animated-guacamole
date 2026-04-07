@@ -415,11 +415,29 @@ export default function GhibliAutomation() {
               border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 40, marginBottom: 30,
               boxShadow: "0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)",
             }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 20, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-                Choose Your World
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
+                  Choose Your World
+                </div>
+                <button 
+                  onClick={refreshThemes}
+                  disabled={isRefreshingThemes}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    background: "rgba(74,255,236,0.1)", border: "1px solid rgba(74,255,236,0.3)",
+                    color: "#4affec", padding: "6px 12px", borderRadius: 100, fontSize: 11,
+                    fontWeight: 700, cursor: "pointer", transition: "all 0.3s",
+                    textTransform: "uppercase", letterSpacing: 1
+                  }}
+                  onMouseEnter={e => e.target.style.background = "rgba(74,255,236,0.2)"}
+                  onMouseLeave={e => e.target.style.background = "rgba(74,255,236,0.1)"}
+                >
+                  <Sparkles size={14} style={{ animation: isRefreshingThemes ? "spin 1s linear infinite" : "none" }} />
+                  {isRefreshingThemes ? "Summoning..." : "Magic Shuffle"}
+                </button>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 30 }}>
-                {THEMES.map(t => (
+                {currentThemes.map(t => (
                   <button key={t} className={`theme-btn${theme === t ? " selected" : ""}`} onClick={() => { setTheme(t); setCustomTheme(""); }}
                     style={{
                       background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",

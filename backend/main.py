@@ -61,6 +61,30 @@ def root():
 def health():
     return {"status": "ok"}
 
+@app.get("/suggest_themes")
+async def suggest_themes():
+    """
+    Brainstorms 6 new Ghibli-style world concepts using Gemini.
+    """
+    try:
+        from backend.agents.base import BaseAgent
+        agent = BaseAgent("theme_architect", "You are a master at brainstorming poetic Studio Ghibli world concepts.")
+        
+        prompt = (
+            "Brainstorm 6 unique, poetic, and atmosphere-heavy Studio Ghibli world titles. "
+            "Examples: 'The Clockmaker's Hidden Attic', 'A Village of Whispering Lanterns'. "
+            "Return ONLY a JSON array of 6 strings. No markdown, no numbering."
+        )
+        
+        response = agent.llm.invoke(prompt)
+        text = response.content.replace("```json", "").replace("```", "").strip()
+        themes = json.loads(text)
+        return {"themes": themes}
+    except Exception as e:
+        print(f"Theme suggestion error: {e}")
+        # Default fallback
+        return {"themes": ["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain Spirit", "Abandoned Station", "Rainy Rooftop"]}
+
 @app.get("/generations")
 async def fetch_generations(request: Request, limit: int = 20):
     """
