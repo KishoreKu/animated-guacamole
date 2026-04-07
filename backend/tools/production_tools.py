@@ -152,16 +152,41 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             
     return video_paths
 
-def _generate_single_audio(scene: str, i: int, session_id: str) -> str:
-    """Helper for parallel audio synthesis."""
+def _generate_single_audio(scene: str, i: int, session_id: str, style: str = "ghibli") -> str:
+    """Helper for parallel human-like audio synthesis."""
     from google.cloud import texttospeech
     client = texttospeech.TextToSpeechClient()
-    narration = scene.split("Narration:")[-1].strip() if "Narration:" in scene else scene
-    input_text = texttospeech.SynthesisInput(text=narration)
-    voice = texttospeech.VoiceSelectionParams(language_code="en-US", name="en-US-Neural2-F")
-    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
     
-    print(f"🎙️ Synthesizing narration for scene {i+1}...")
+    # Human Touch Mapping
+    VOICE_REGISTRY = {
+        "ghibli": "en-US-Studio-O",
+        "shinkai": "en-US-Studio-O",
+        "disney": "en-US-Studio-Q",
+        "cyberpunk": "en-US-Journey-F",
+        "spiderverse": "en-US-Journey-F"
+    }
+    
+    voice_name = VOICE_REGISTRY.get(style, "en-US-Studio-O")
+    
+    # CLEANING: Remove any remaining AI markers (Scene 1, Narration: etc.)
+    narration = scene.split("Narration:")[-1].strip() if "Narration:" in scene else scene
+    narration = re.sub(r'Scene\s+\d+[:\-]?\s*', '', narration, flags=re.IGNORECASE)
+    
+    input_text = texttospeech.SynthesisInput(text=narration)
+    
+    # Use STUDIO or JOURNEY for human touch
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US", 
+        name=voice_name
+    )
+    
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3,
+        pitch=0.0,
+        speaking_rate=0.95 # Slightly slower for better human cadence
+    )
+    
+    print(f"🎙️ Synthesizing human-touch narration for scene {i+1} using {voice_name}...")
     response = client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
     
     path = f"audio_{session_id}_{i}.mp3"
@@ -169,13 +194,13 @@ def _generate_single_audio(scene: str, i: int, session_id: str) -> str:
         out.write(response.audio_content)
     return path
 
-def generate_audio(script_scenes: List[str]) -> List[str]:
+def generate_audio(script_scenes: List[str], style: str = "ghibli") -> List[str]:
     """
-    Converts script narration to audio using Google Cloud TTS in parallel.
+    Converts script narration to audio using Studio-grade TTS in parallel.
     """
     session_id = str(int(time.time()))
     with ThreadPoolExecutor(max_workers=5) as executor:
-        worker = partial(_generate_single_audio, session_id=session_id)
+        worker = partial(_generate_single_audio, session_id=session_id, style=style)
         audio_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(script_scenes)))
     
     return audio_paths

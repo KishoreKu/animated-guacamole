@@ -41,11 +41,13 @@ class ProductionAgent(BaseAgent):
 
     async def generate_audio_node(self, state: GraphState) -> GraphState:
         """
-        [ASYNC] Synthesizes narration audio using a background thread.
+        [ASYNC] Synthesizes narration audio using a background thread with style-aware Studio voices.
         """
         try:
             if not state.get('generate_video', True):
                 return {"local_audio_paths": [], "logs": state["logs"] + ["⏭️ Video generation disabled, skipping audio narration."]}
+            
+            style = state.get('style', 'ghibli')
             
             # SCRUB NARRATION: Remove Scene 1, Scene 2 etc.
             raw_script = state.get("script", "")
@@ -53,12 +55,12 @@ class ProductionAgent(BaseAgent):
             narration_blocks = [s.strip() for s in clean_script.split("\n\n") if s.strip()]
             
             image_paths = state.get("local_image_paths", [])
-            # Offload to thread
-            audio_paths = await asyncio.to_thread(generate_audio, narration_blocks[:len(image_paths)])
+            # Offload to the upgraded Studio TTS engine
+            audio_paths = await asyncio.to_thread(generate_audio, narration_blocks[:len(image_paths)], style=style)
             
             return {
                 "local_audio_paths": audio_paths,
-                "logs": state["logs"] + ["🎙️ Narration synthesized with Ghibli-esque emotional tone."]
+                "logs": state["logs"] + [f"🎙️ Narration synthesized with human-touch '{style}' Studio voice."]
             }
         except Exception as e:
             return {"logs": state["logs"] + [f"🚨 Audio synthesis error: {str(e)}"]}
