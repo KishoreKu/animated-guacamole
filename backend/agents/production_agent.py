@@ -21,42 +21,71 @@ class ProductionAgent(BaseAgent):
                 prompts = [state["topic"]] * num_scenes
             
             prompts = prompts[:num_scenes]
-            image_paths = generate_images(prompts)
             
-            # Parallelize GCS Uploads
-            print(f"☁️ Uploading {len(image_paths)} scenes to GCS in parallel...")
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                uploader = partial(upload_to_gcs, bucket_name=BUCKET_NAME)
-                image_urls = list(executor.map(uploader, image_paths))
-            
-            # Archiving locally for the Public Archive
-            # Find project root where main.py and public/ folder should live
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            # If we are in local dev, 'project_root' is the parent of 'backend'. In production (Dockerfile COPY . .), it's the root.
-            # But wait, in local dev, 'main.py' is inside 'backend/'. 
-            # In production, 'main.py' is at '/app/'.
-            
-            # Let's use the current work dir as a fallback if the above doesn't have public/archive
-            archive_dir = os.path.join(project_root, "public", "archive")
-            if not os.path.exists(archive_dir):
-                # Fallback to local 'backend/public/archive' if we are in root
-                local_dev_path = os.path.join(project_root, "backend", "public", "archive")
-                if os.path.exists(os.path.join(project_root, "backend")):
-                    archive_dir = local_dev_path
-            
-            os.makedirs(archive_dir, exist_ok=True)
-            
-            for ip in image_paths:
-                if os.path.exists(ip):
-                    shutil.copy2(ip, os.path.join(archive_dir, os.path.basename(ip)))
-            
-            return {
-                "local_image_paths": image_paths,
-                "image_urls": image_urls,
-                "logs": [f"🎨 Generated, uploaded to GCS, and archived {len(image_urls)} scenes locally."]
-            }
+            # --- VIDEO VS IMAGE MODE ---
+            if state.get('generate_video', False):
+                from backend.tools.production_tools import generate_video_clips, generate_audio, stitch_video, upload_to_gcs
+                
+                # 1. Generate real moving video clips
+                asset_paths = generate_video_clips(prompts)
+                
+                # 2. Generate Narration (TTS)
+                script_scenes = [s for s in state["script"].split("\n\n") if s.strip()]
+                audio_paths = generate_audio(script_scenes)
+                
+                # 3. Stitch moving clips with narrations
+                video_filename = f"final_{int(time.time())}.mp4"
+                local_video = stitch_video(asset_paths, audio_paths, video_filename)
+                
+                # 4. Upload to GCS
+                public_url = upload_to_gcs(local_video, BUCKET_NAME)
+                
+                # Archive the final video locally for the gallery
+                archive_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "archive")
+                os.makedirs(archive_dir, exist_ok=True)
+                shutil.copy(local_video, os.path.join(archive_dir, os.path.basename(local_video)))
+                
+                return {
+                    "video_url": public_url,
+                    "image_urls": [public_url], # In video mode, video is the display asset
+                    "status": "completed",
+                    "logs": state["logs"] + ["🎥 True AI cinematic video generated and archived!"]
+                }
+            else:
+                from backend.tools.production_tools import generate_images, generate_audio, stitch_video, upload_to_gcs
+                
+                # 1. Generate Static Visual Artifacts (Imagen)
+                image_paths = generate_images(prompts)
+                
+                # 2. Generate Narration (TTS)
+                script_scenes = [s for s in state["script"].split("\n\n") if s.strip()]
+                audio_paths = generate_audio(script_scenes)
+                
+                # 3. Stitch with Ken Burns effect
+                video_filename = f"final_{int(time.time())}.mp4"
+                local_video = stitch_video(image_paths, audio_paths, video_filename)
+                
+                # 4. Upload to GCS
+                public_url = upload_to_gcs(local_video, BUCKET_NAME)
+                
+                # Archive results (images and video)
+                archive_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public", "archive")
+                os.makedirs(archive_dir, exist_ok=True)
+                for img in image_paths:
+                    shutil.copy(img, os.path.join(archive_dir, os.path.basename(img)))
+                shutil.copy(local_video, os.path.join(archive_dir, os.path.basename(local_video)))
+                
+                image_archive_urls = [f"/archive/{os.path.basename(img)}" for img in image_paths]
+                
+                return {
+                    "video_url": public_url,
+                    "image_urls": image_archive_urls,
+                    "status": "completed",
+                    "logs": state["logs"] + ["✅ Static Ghibli video generated and archived!"]
+                }
+                
         except Exception as e:
-            return {"logs": [f"🚨 Image generation error: {str(e)}"], "status": "error"}
+            return {"logs": state["logs"] + [f"🚨 Production error: {str(e)}"], "status": "error"}
 
     def generate_audio_node(self, state: GraphState) -> GraphState:
         try:

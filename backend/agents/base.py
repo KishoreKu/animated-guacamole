@@ -12,11 +12,15 @@ class BaseAgent:
         self.name = name
         self.persona = persona
         # Configure for Google Gemini
-        self.llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.7,
-        )
+        try:
+            self.llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=os.getenv("GOOGLE_API_KEY") or "DUMMY_KEY",
+                temperature=0.7,
+            )
+        except Exception:
+            # Fallback for limited environments or test runs
+            self.llm = None
         if tools:
             self.llm = self.llm.bind_tools(tools)
         self.tools = tools

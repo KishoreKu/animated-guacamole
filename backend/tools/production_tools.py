@@ -102,15 +102,39 @@ def generate_video_clips(prompts: List[str]) -> List[str]:
             # Poll for completion (video takes about 60-120 seconds)
             while not operation.done:
                 time.sleep(10)
-                operation = client.operations.get_videos_operation(operation=operation)
+                # Correct SDK method for polling
+                operation = client.operations.get(operation)
             
             # Download the result from GCS to local tmp
             path = f"scene_{session_id}_{i}.mp4"
-            # Veo returns the video bytes or URI
-            content = operation.response.generated_videos[0].video_bytes
-            with open(path, 'wb') as f:
-                f.write(content)
-            video_paths.append(path)
+            
+            # Check for Cloud Storage URI or Direct Bytes
+            source = operation.response.generated_videos[0]
+            uri = None
+            if hasattr(source, 'video'):
+                if hasattr(source.video, 'uri') and source.video.uri:
+                    uri = source.video.uri
+                elif hasattr(source.video, 'video_bytes') and source.video.video_bytes:
+                    print("💾 Extracting video bytes directly from response...")
+                    with open(path, 'wb') as f:
+                        f.write(source.video.video_bytes)
+                    video_paths.append(path)
+                    continue
+            
+            if not uri and hasattr(source, 'uri'):
+                uri = source.uri
+                
+            if uri:
+                print(f"📥 Downloading video from {uri}...")
+                bucket_name = uri.split("/")[2]
+                object_name = "/".join(uri.split("/")[3:])
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(object_name)
+                blob.download_to_filename(path)
+                video_paths.append(path)
+            else:
+                raise Exception("Produced video data not found in Veo response.")
             
         except Exception as e:
             print(f"⚠️ Veo failed for scene {i+1}: {e}. Falling back to image-to-video...")
