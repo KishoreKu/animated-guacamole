@@ -15,12 +15,32 @@ class ProductionAgent(BaseAgent):
     def generate_images_node(self, state: GraphState) -> GraphState:
         BUCKET_NAME = "ghibli-assets-1775332583"
         try:
-            num_scenes = state.get('num_scenes', 5)
-            prompts = [line.strip() for line in state["visuals"].split("\n") if line.strip() and (line[0].isdigit() or line.startswith("-"))]
-            if not prompts:
-                prompts = [state["topic"]] * num_scenes
+            import re
             
+            num_scenes = state.get('num_scenes', 5)
+            # 1. Parse Visual Prompts (Numbered list or paragraphs)
+            prompts = [re.sub(r"^\d+[\.\)]\s*", "", line).strip() for line in state["visuals"].split("\n") if line.strip() and (line[0].isdigit() or line.startswith("-"))]
+            if not prompts:
+                # Fallback if list is not numbered
+                prompts = [line.strip() for line in state["visuals"].split("\n") if line.strip()][:num_scenes]
+            
+            # 2. Parse Narration Blocks (Extracting only 'Narration:' content)
+            # This ensures extra lines or titles don't create audio clips
+            narration_blocks = re.findall(r"Narration:\s*(.*?)(?=\nSCENE|\nVisual|\n$|$)", state["script"], re.DOTALL | re.IGNORECASE)
+            # Fallback if LLM deviates from 'Narration:' format
+            if not narration_blocks or len(narration_blocks) < num_scenes:
+                print("⚠️ Narration parser fallback: splitting by scenes...")
+                raw_scenes = [s for s in state["script"].split("SCENE") if s.strip()]
+                narration_blocks = []
+                for s in raw_scenes:
+                    if "Narration:" in s:
+                        narration_blocks.append(s.split("Narration:")[-1].strip())
+                    else:
+                        narration_blocks.append(s.strip())
+
+            # Clamp to requested scene count
             prompts = prompts[:num_scenes]
+            narration_blocks = narration_blocks[:len(prompts)]
             
             # --- VIDEO VS IMAGE MODE ---
             if state.get('generate_video', False):
@@ -30,9 +50,8 @@ class ProductionAgent(BaseAgent):
                 # 1. Generate real moving video clips
                 asset_paths = generate_video_clips(prompts)
                 
-                # 2. Generate Narration (TTS)
-                script_scenes = [s for s in state["script"].split("\n\n") if s.strip()]
-                audio_paths = generate_audio(script_scenes)
+                # 2. Generate Narration (TTS) using our CLEANED blocks
+                audio_paths = generate_audio(narration_blocks)
                 
                 # 3. Stitch moving clips with narrations
                 video_filename = f"final_{int(time.time())}.mp4"
@@ -69,9 +88,8 @@ class ProductionAgent(BaseAgent):
                 # 1. Generate Static Visual Artifacts (Imagen)
                 image_paths = generate_images(prompts)
                 
-                # 2. Generate Narration (TTS)
-                script_scenes = [s for s in state["script"].split("\n\n") if s.strip()]
-                audio_paths = generate_audio(script_scenes)
+                # 2. Generate Narration (TTS) using our CLEANED blocks
+                audio_paths = generate_audio(narration_blocks)
                 
                 # 3. Stitch with Ken Burns effect
                 video_filename = f"final_{int(time.time())}.mp4"
