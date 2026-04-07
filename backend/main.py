@@ -136,39 +136,72 @@ async def generate(request: Request):
     }
 
     async def event_stream():
-        try:
-            accumulated_state = initial_state.copy()
-            # LangGraph streaming
-            async for output in orchestrator.astream(initial_state):
-                for node_name, state_update in output.items():
-                    accumulated_state.update(state_update)
-                
-                yield f"data: {json.dumps(output)}\n\n"
-                await asyncio.sleep(0.1)
-            
-            # --- PERSISTENCE ---
-            if accumulated_state.get("image_urls"):
-                db_data = {
-                    "topic": accumulated_state.get("topic"),
-                    "concept": accumulated_state.get("concept", ""),
-                    "video_url": accumulated_state.get("video_url", ""),
-                    "image_urls": accumulated_state.get("image_urls", []),
-                    "metadata": {
-                        "title": accumulated_state.get("metadata", ""),
-                        "script": accumulated_state.get("script", ""),
-                        "visuals": accumulated_state.get("visuals", ""),
-                        "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
-                        "tags": []
-                    },
-                    "source": "manual",
-                    "user_id": user.id  # Track who made this
-                }
-                save_generation(db_data)
+        # Producer-Consumer queue for the stream
+        stream_queue = asyncio.Queue()
+        
+        async def heartbeat():
+            """Sends a poetic pulse every 15s to keep the connection alive."""
+            heartbeat_messages = [
+                "💓 Studio heartbeat... Keep-alive active.",
+                "✨ The spirits are weaving your world...",
+                "🎨 Mixing watercolors and memories...",
+                "🎞️ Finalizing the cinematic reels..."
+            ]
+            import random
+            while True:
+                await asyncio.sleep(15)
+                msg = random.choice(heartbeat_messages)
+                await stream_queue.put(f"data: {json.dumps({'status': 'heartbeat', 'logs': [f'🍃 {msg}']})}\n\n")
 
-            yield f"data: {json.dumps({'status': 'done'})}\n\n"
-        except Exception as e:
-            print(f"CRITICAL STREAM ERROR: {repr(e)}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        async def run_orchestrator():
+            """Runs the orchestrator and puts its updates into the queue."""
+            try:
+                accumulated_state = initial_state.copy()
+                async for output in orchestrator.astream(initial_state):
+                    for node_name, state_update in output.items():
+                        accumulated_state.update(state_update)
+                    await stream_queue.put(f"data: {json.dumps(output)}\n\n")
+                
+                # --- PERSISTENCE ---
+                if accumulated_state.get("video_url") or accumulated_state.get("image_urls"):
+                    db_data = {
+                        "topic": accumulated_state.get("topic"),
+                        "concept": accumulated_state.get("concept", ""),
+                        "video_url": accumulated_state.get("video_url", ""),
+                        "image_urls": accumulated_state.get("image_urls", []),
+                        "metadata": {
+                            "title": accumulated_state.get("metadata", ""),
+                            "script": accumulated_state.get("script", ""),
+                            "visuals": accumulated_state.get("visuals", ""),
+                            "bgm_prompt": accumulated_state.get("bgm_prompt", ""),
+                            "tags": []
+                        },
+                        "source": "manual",
+                        "user_id": user.id
+                    }
+                    save_generation(db_data)
+                
+                await stream_queue.put(f"data: {json.dumps({'status': 'done'})}\n\n")
+            except Exception as e:
+                print(f"CRITICAL STREAM ERROR: {repr(e)}")
+                await stream_queue.put(f"data: {json.dumps({'error': str(e)})}\n\n")
+            finally:
+                # Signal the end of the queue
+                await stream_queue.put(None)
+
+        # Start tasks
+        heartbeat_task = asyncio.create_task(heartbeat())
+        orchestrator_task = asyncio.create_task(run_orchestrator())
+
+        try:
+            while True:
+                item = await stream_queue.get()
+                if item is None:
+                    break
+                yield item
+        finally:
+            heartbeat_task.cancel()
+            orchestrator_task.cancel()
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
