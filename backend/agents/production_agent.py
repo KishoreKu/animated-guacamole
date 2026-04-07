@@ -60,10 +60,13 @@ class ProductionAgent(BaseAgent):
             
             return {
                 "local_audio_paths": audio_paths,
-                "logs": state["logs"] + [f"🎙️ Narration synthesized with human-touch '{style}' Studio voice."]
+                "logs": state["logs"] + [f"🎙️ {len(audio_paths)} narration blocks synthesized."]
             }
         except Exception as e:
-            return {"logs": state["logs"] + [f"🚨 Audio synthesis error: {str(e)}"]}
+            return {
+                "local_audio_paths": [], 
+                "logs": state["logs"] + [f"🚨 Audio synthesis error: {str(e)}"]
+            }
 
     async def finalize_video_node(self, state: GraphState) -> GraphState:
         """

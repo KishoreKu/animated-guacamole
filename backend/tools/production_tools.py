@@ -277,25 +277,39 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
         return clip.fl(effect)
 
     clips = []
-    for i, (asset_p, audio_p) in enumerate(zip(asset_paths, audio_paths)):
-        audio_clip = AudioFileClip(audio_p)
+    # Use asset_paths as the master list so we don't skip scenes if audio is missing
+    for i, asset_p in enumerate(asset_paths):
+        # Fallback to 5s if audio is missing
+        audio_p = audio_paths[i] if i < len(audio_paths) else None
+        
+        if audio_p and os.path.exists(audio_p):
+            audio_clip = AudioFileClip(audio_p)
+            duration = audio_clip.duration
+        else:
+            audio_clip = None
+            duration = 5.0 # Atmospheric fallback
         
         if asset_p.endswith(".mp4"):
             video_clip = VideoFileClip(asset_p)
-            if video_clip.duration < audio_clip.duration:
-                video_clip = video_clip.loop(duration=audio_clip.duration)
+            if video_clip.duration < duration:
+                video_clip = video_clip.loop(duration=duration)
             else:
-                video_clip = video_clip.set_duration(audio_clip.duration)
-            video_clip = video_clip.set_audio(audio_clip)
+                video_clip = video_clip.set_duration(duration)
+            if audio_clip:
+                video_clip = video_clip.set_audio(audio_clip)
         else:
-            img_clip = ImageClip(asset_p).set_duration(audio_clip.duration)
+            img_clip = ImageClip(asset_p).set_duration(duration)
             img_clip = make_kenburns(img_clip, zoom_factor=0.12)
-            img_clip = img_clip.set_audio(audio_clip)
+            if audio_clip:
+                img_clip = img_clip.set_audio(audio_clip)
             video_clip = img_clip
 
         video_clip = video_clip.crossfadein(0.8)
         clips.append(video_clip)
-        
+    
+    if not clips:
+        raise ValueError("Cinematic sequence is empty. No assets found to stitch.")
+
     final_clip = concatenate_videoclips(clips, method="compose")
     
     # --- BACKGROUND MUSIC MIXING ---
