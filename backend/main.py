@@ -116,11 +116,13 @@ async def generate(request: Request):
     user = await get_current_user(request)
     data = await request.json()
     topic = data.get("topic", "Enchanted Forest")
+    style = data.get("style", "ghibli")
     num_scenes = data.get("numScenes", 5)
     generate_video = data.get("generateVideo", True)
     
     initial_state = {
         "topic": topic,
+        "style": style,
         "num_scenes": num_scenes,
         "generate_video": generate_video,
         "concept": "",
@@ -128,7 +130,7 @@ async def generate(request: Request):
         "visuals": "",
         "metadata": "",
         "bgm_prompt": "",
-        "logs": [f"🎬 Pipeline started for topic: '{topic}'"],
+        "logs": [f"🎬 {style.capitalize()} Pipeline started for topic: '{topic}'"],
         "evaluations": [],
         "local_image_paths": [],
         "local_audio_paths": [],

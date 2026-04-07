@@ -116,6 +116,7 @@ export default function GhibliAutomation() {
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
+  const [style, setStyle] = useState("ghibli");
   const [generateVideo, setGenerateVideo] = useState(true);
   const [running, setRunning] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
@@ -241,7 +242,7 @@ export default function GhibliAutomation() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ topic, numScenes, generateVideo }),
+        body: JSON.stringify({ topic, numScenes, generateVideo, style }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -425,6 +426,47 @@ export default function GhibliAutomation() {
         {/* INPUT PHASE */}
         {phase === "input" && (
           <div style={{ animation: "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+            
+            {/* Universe Selection */}
+            <div style={{
+              background: "rgba(10, 15, 20, 0.5)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
+              border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "24px 40px", marginBottom: 30,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)",
+            }}>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", fontFamily: "'Inter', sans-serif", fontWeight: 600, marginBottom: 20 }}>
+                Choose Your Universe
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                {[
+                  { id: "ghibli", name: "Ghibli Classic", icon: "⛩️" },
+                  { id: "cyberpunk", name: "Neon Cyberpunk", icon: "🏙️" },
+                  { id: "shinkai", name: "Shinkai Skies", icon: "☄️" },
+                  { id: "disney", name: "Classic Disney", icon: "🏰" },
+                  { id: "spiderverse", name: "Comic Fusion", icon: "🕷️" }
+                ].map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => setStyle(u.id)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      padding: "16px", borderRadius: 16, border: "1px solid", 
+                      transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+                      cursor: "pointer",
+                      background: style === u.id ? "rgba(74,255,138,0.15)" : "rgba(255,255,255,0.03)",
+                      borderColor: style === u.id ? "rgba(74,255,138,0.4)" : "rgba(255,255,255,0.1)",
+                      color: style === u.id ? "#fff" : "rgba(255,255,255,0.6)",
+                      boxShadow: style === u.id ? "0 8px 24px rgba(74,255,138,0.2)" : "none",
+                      transform: style === u.id ? "translateY(-2px)" : "none",
+                      fontFamily: "'Inter', sans-serif"
+                    }}
+                  >
+                    <span style={{ fontSize: 28, marginBottom: 8 }}>{u.icon}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{u.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{
               background: "rgba(10, 15, 20, 0.5)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
               border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 40, marginBottom: 30,
@@ -593,7 +635,7 @@ export default function GhibliAutomation() {
 
         {/* RESULT PHASE */}
         {phase === "result" && finalResult && (
-          <ResultPanel result={finalResult} onReset={reset} parseMetadata={parseMetadata} handleDownload={handleDownload} />
+          <ResultPanel result={finalResult} onReset={reset} parseMetadata={parseMetadata} handleDownload={handleDownload} setStyle={setStyle} style={style} />
         )}
 
         {/* GALLERY PHASE */}
@@ -605,6 +647,8 @@ export default function GhibliAutomation() {
               parseMetadata={parseMetadata}
               isGalleryView={true}
               handleDownload={handleDownload}
+              setStyle={setStyle}
+              style={style}
             />
           ) : (
             <GalleryPanel 
@@ -674,7 +718,7 @@ function GalleryPanel({ data, loading, onReset, onViewScenes, handleDownload }) 
   );
 }
 
-function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDownload }) {
+function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDownload, setStyle, style }) {
   const [tab, setTab] = useState("images");
   const [showCinematic, setShowCinematic] = useState(false);
   const meta = parseMetadata(result.metadata);

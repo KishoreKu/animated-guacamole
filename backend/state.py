@@ -7,6 +7,7 @@ class GraphState(TypedDict):
     Represents the state of our Ghibli Video Studio graph.
     """
     topic: str
+    style: str # ghibli | cyberpunk | shinkai | disney | spiderverse
     num_scenes: int
     generate_video: bool
     concept: str

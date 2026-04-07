@@ -1,12 +1,17 @@
 from backend.agents.base import BaseAgent
 from backend.state import GraphState
 from langchain_core.messages import HumanMessage, SystemMessage
+from backend.tools.style_manager import get_style_data
 
 class MusicAgent(BaseAgent):
     def __init__(self):
+        super().__init__("music", "Universal Film Composer")
+
+    def execute(self, state: GraphState) -> GraphState:
+        style_dna = get_style_data(state.get("style", "ghibli"))
         persona = (
-            "You are a master film composer specializing in Studio Ghibli scores. "
-            "Your task is to analyze a story and pick the perfect musical 'Mood'. "
+            f"You are a master film composer specializing in {style_dna['name']} scores. "
+            "Your task is to analyze a story and pick the perfect musical 'Mood' for this universe. "
             "Select EXACTLY ONE of the following moods that best fits the theme:\n"
             "- whimsical_adventure: Playful, up-tempo piano and strings.\n"
             "- nostalgic_memory: Gentle piano and flute, emotional and reflective.\n"
@@ -17,12 +22,10 @@ class MusicAgent(BaseAgent):
             "- magical_wonder: Sparkling celesta and sweeping orchestral swells.\n"
             "- spooky_shadows: Tense, low woodwinds and metallic percussion."
         )
-        super().__init__("music", persona)
-
-    def execute(self, state: GraphState) -> GraphState:
-        msg = f"Pick the perfect Ghibli music mood for this concept and script:\nConcept: {state['concept']}\nScript: {state['script']}\n\nOutput only the MOOD_NAME."
+        
+        msg = f"Pick the perfect musical mood for this {style_dna['name']} concept and script:\nConcept: {state['concept']}\nScript: {state['script']}\n\nOutput only the MOOD_NAME."
         response = self.llm.invoke([
-            SystemMessage(content=self.persona),
+            SystemMessage(content=persona),
             HumanMessage(content=msg)
         ])
         
@@ -41,4 +44,4 @@ class MusicAgent(BaseAgent):
                 selected_mood = m
                 break
                 
-        return {"music_mood": selected_mood, "logs": [f"✿ Orchestrating '{selected_mood}' musical score."]}
+        return {"music_mood": selected_mood, "logs": state["logs"] + [f"✿ Orchestrating '{selected_mood}' score for {style_dna['name']}."]}
