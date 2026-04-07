@@ -86,7 +86,13 @@ class ProductionAgent(BaseAgent):
             )
             
             # UPLOAD
-            video_url = await asyncio.to_thread(upload_to_gcs, video_local, f"videos/{os.path.basename(video_local)}")
+            BUCKET_NAME = "ghibli-assets-1775332583"
+            video_url = await asyncio.to_thread(
+                upload_to_gcs, 
+                video_local, 
+                BUCKET_NAME, 
+                destination_blob_name=f"videos/{os.path.basename(video_local)}"
+            )
             
             # LOG SUCCESS
             return {

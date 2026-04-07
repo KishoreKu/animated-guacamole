@@ -292,10 +292,15 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     final_clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
     return output_filename
 
-def upload_to_gcs(local_path: str, bucket_name: str):
+def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str = None):
+    """Uploads a file to GCS. Uses basename if destination_blob_name is omitted."""
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(os.path.basename(local_path))
+    
+    # If no destination name provided, use the local filename
+    blob_name = destination_blob_name if destination_blob_name else os.path.basename(local_path)
+    
+    blob = bucket.blob(blob_name)
     blob.upload_from_filename(local_path)
     blob.make_public()
     return blob.public_url
