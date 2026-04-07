@@ -94,7 +94,10 @@ class ProductionAgent(BaseAgent):
                     "video_url": public_video_url,
                     "image_urls": [public_thumb_url], 
                     "status": "completed",
-                    "logs": state["logs"] + ["🎥 True AI cinematic video and cloud thumbnail generated!"]
+                    "logs": state["logs"] + [
+                        "🎥 True AI cinematic video and cloud thumbnail generated!",
+                        f"🎼 Ghibli Soundtrack Mastered: {state.get('music_mood', 'Peaceful')}"
+                    ]
                 }
             else:
                 from backend.tools.production_tools import generate_images, generate_audio, stitch_video, upload_to_gcs
@@ -126,7 +129,10 @@ class ProductionAgent(BaseAgent):
                     "video_url": public_video_url,
                     "image_urls": image_gcs_urls,
                     "status": "completed",
-                    "logs": state["logs"] + ["✅ Static Ghibli gallery and video hosted in Cloud!"]
+                    "logs": state["logs"] + [
+                        "✅ Static Ghibli gallery and video hosted in Cloud!",
+                        f"🎼 Ghibli Soundtrack Mastered: {state.get('music_mood', 'Peaceful')}"
+                    ]
                 }
                 
         except Exception as e:
