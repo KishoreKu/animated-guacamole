@@ -2,13 +2,16 @@ from langgraph.graph import StateGraph, END
 from backend.state import GraphState
 from backend.agents.concept_agent import ConceptAgent
 from backend.agents.script_agent import ScriptAgent
+from backend.agents.music_agent import MusicAgent
 from backend.agents.visual_agent import VisualAgent
 from backend.agents.metadata_agent import MetadataAgent
 from backend.agents.production_agent import ProductionAgent
+
 def create_orchestrator():
     # Initialize agents
     concept_agent = ConceptAgent()
     script_agent = ScriptAgent()
+    music_agent = MusicAgent()
     visual_agent = VisualAgent()
     metadata_agent = MetadataAgent()
     production_agent = ProductionAgent()
@@ -19,6 +22,7 @@ def create_orchestrator():
     # Add nodes
     workflow.add_node("concept", concept_agent.execute)
     workflow.add_node("script", script_agent.execute)
+    workflow.add_node("music", music_agent.execute)
     workflow.add_node("visuals", visual_agent.execute)
     workflow.add_node("metadata", metadata_agent.execute)
     workflow.add_node("image_gen", production_agent.generate_images_node)
@@ -29,9 +33,9 @@ def create_orchestrator():
     workflow.set_entry_point("concept")
 
     # Add linear edges
-    # Parallel branches: metadata and visuals
     workflow.add_edge("concept", "script")
-    workflow.add_edge("script", "visuals")
+    workflow.add_edge("script", "music")
+    workflow.add_edge("music", "visuals")
     workflow.add_edge("script", "metadata")
     
     # Asset pipeline: visuals -> image_gen -> audio_gen -> finalize_video

@@ -13,6 +13,7 @@ class GraphState(TypedDict):
     script: str
     visuals: str
     metadata: str
+    music_mood: str
     bgm_prompt: str
     image_urls: List[str]
     audio_urls: List[str]

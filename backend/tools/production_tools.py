@@ -172,9 +172,34 @@ def generate_audio(script_scenes: List[str]) -> List[str]:
     
     return audio_paths
 
-def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4"):
+# --- MUSIC MOOD HUB ---
+MOOD_LIBRARY = {
+    "whimsical_adventure": "https://cdn.pixabay.com/audio/2022/01/18/audio_d0a13d6a45.mp3", # Playful Orchestral
+    "nostalgic_memory": "https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a0a0a0.mp3", # Soft Piano
+    "mysterious_forest": "https://cdn.pixabay.com/audio/2021/11/25/audio_b5b5b5b5b5.mp3", # Ambient Strings
+    "melancholy_sorrow": "https://cdn.pixabay.com/audio/2022/05/20/audio_a4a4a4a4a4.mp3", # Sad Piano
+    "triumphant_heroic": "https://cdn.pixabay.com/audio/2022/02/10/audio_f1f1f1f1f1.mp3", # Epic Cinematic
+    "peaceful_watercolor": "https://cdn.pixabay.com/audio/2022/08/04/audio_e2e2e2e2e2.mp3", # Acoustic/Lofi
+    "magical_wonder": "https://cdn.pixabay.com/audio/2023/01/05/audio_d3d3d3d3d3.mp3", # Magical Sweeps
+    "spooky_shadows": "https://cdn.pixabay.com/audio/2022/10/12/audio_9e9e9e9e9e.mp3" # Tense/Atmospheric
+}
+
+def download_bgm(mood: str) -> str:
+    """Downloads the BGM for the given mood and returns local path."""
+    import requests
+    url = MOOD_LIBRARY.get(mood, MOOD_LIBRARY["peaceful_watercolor"])
+    local_path = f"bgm_{mood}.mp3"
+    if not os.path.exists(local_path):
+        print(f"🎵 Downloading Ghibli Theme: {mood}...")
+        r = requests.get(url, stream=True)
+        with open(local_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk: f.write(chunk)
+    return local_path
+
+def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename: str = "final_video.mp4", music_mood: str = None):
     """
-    Stitches local assets (images or mp4s) and audio into a final MP4.
+    Stitches local assets and audio into a final MP4 with background music.
     """
     from PIL import Image
     import numpy as np
@@ -203,20 +228,14 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
         audio_clip = AudioFileClip(audio_p)
         
         if asset_p.endswith(".mp4"):
-            # It's a moving video from Veo
             video_clip = VideoFileClip(asset_p)
-            # Match duration or loop if audio is longer
             if video_clip.duration < audio_clip.duration:
-                # Loop video to match audio
                 video_clip = video_clip.loop(duration=audio_clip.duration)
             else:
                 video_clip = video_clip.set_duration(audio_clip.duration)
-            
             video_clip = video_clip.set_audio(audio_clip)
         else:
-            # It's a static image (fallback)
             img_clip = ImageClip(asset_p).set_duration(audio_clip.duration)
-            print(f"Applying Cinematic Ken Burns to Scene {i+1}...")
             img_clip = make_kenburns(img_clip, zoom_factor=0.12)
             img_clip = img_clip.set_audio(audio_clip)
             video_clip = img_clip
@@ -225,8 +244,31 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
         clips.append(video_clip)
         
     final_clip = concatenate_videoclips(clips, method="compose")
-    final_clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
     
+    # --- BACKGROUND MUSIC MIXING ---
+    if music_mood:
+        try:
+            bgm_path = download_bgm(music_mood)
+            bgm_clip = AudioFileClip(bgm_path).volumex(0.15) # Duck to 15%
+            
+            # Loop bgm if shorter than video
+            if bgm_clip.duration < final_clip.duration:
+                bgm_clip = bgm_clip.loop(duration=final_clip.duration)
+            else:
+                bgm_clip = bgm_clip.set_duration(final_clip.duration)
+            
+            # Fade out BGM at the end
+            bgm_clip = bgm_clip.audio_fadeout(2)
+            
+            # Composite Audio
+            from moviepy.audio.AudioClip import CompositeAudioClip
+            new_audio = CompositeAudioClip([final_clip.audio, bgm_clip])
+            final_clip = final_clip.set_audio(new_audio)
+            print(f"🎼 Music Layered: {music_mood}")
+        except Exception as e:
+            print(f"⚠️ Music mixing failed: {e}")
+
+    final_clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
     return output_filename
 
 def upload_to_gcs(local_path: str, bucket_name: str):

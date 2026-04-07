@@ -16,3 +16,4 @@ ffmpeg-python
 praw==7.7.1
 supabase
 google-genai
+requests

@@ -53,9 +53,9 @@ class ProductionAgent(BaseAgent):
                 # 2. Generate Narration (TTS) using our CLEANED blocks
                 audio_paths = generate_audio(narration_blocks)
                 
-                # 3. Stitch moving clips with narrations
+                # 3. Stitch moving clips with narrations + Music
                 video_filename = f"final_{int(time.time())}.mp4"
-                local_video = stitch_video(asset_paths, audio_paths, video_filename)
+                local_video = stitch_video(asset_paths, audio_paths, video_filename, music_mood=state.get("music_mood"))
                 
                 # 4. Upload Final Video to GCS
                 public_video_url = upload_to_gcs(local_video, BUCKET_NAME)
@@ -91,9 +91,9 @@ class ProductionAgent(BaseAgent):
                 # 2. Generate Narration (TTS) using our CLEANED blocks
                 audio_paths = generate_audio(narration_blocks)
                 
-                # 3. Stitch with Ken Burns effect
+                # 3. Stitch with Ken Burns effect + Music
                 video_filename = f"final_{int(time.time())}.mp4"
-                local_video = stitch_video(image_paths, audio_paths, video_filename)
+                local_video = stitch_video(image_paths, audio_paths, video_filename, music_mood=state.get("music_mood"))
                 
                 # 4. Upload all to GCS
                 public_video_url = upload_to_gcs(local_video, BUCKET_NAME)
