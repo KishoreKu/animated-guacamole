@@ -64,14 +64,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install and Build
-        run: |
-          npm install
-          npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
@@ -79,6 +71,18 @@ jobs:
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Install and Build
+        run: |
+          # Dynamically fetch the backend URL from Cloud Run
+          export VITE_API_URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE_NAME }} --region ${{ env.REGION }} --format="value(status.url)")
+          echo "Building frontend with API URL: $VITE_API_URL"
+          
+          npm install
+          npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: 'Upload to GCS'
         run: |
