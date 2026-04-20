@@ -12,6 +12,7 @@ dist/
 
 .gemini/
 gha-creds-*.json
+*-sa-key.json
 
 # Media Assets (Auto-generated)
 *.mp4

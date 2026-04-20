@@ -5,11 +5,11 @@ on:
     branches: [ main, master ]
 
 env:
-  PROJECT_ID: ghibli-studio-1775332583
+  PROJECT_ID: ghibli-studio-prod
   REGION: us-central1
   BACKEND_SERVICE_NAME: ghibli-backend
-  FRONTEND_BUCKET: ghibli-frontend-1775336710
-  IMAGE_NAME: us-central1-docker.pkg.dev/ghibli-studio-1775332583/ghibli-repo/backend
+  FRONTEND_BUCKET: ghibli-frontend-prod
+  IMAGE_NAME: us-central1-docker.pkg.dev/ghibli-studio-prod/ghibli-repo/backend
 
 jobs:
   deploy-backend:
@@ -50,10 +50,11 @@ jobs:
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
             SUPABASE_URL=SUPABASE_URL:latest
             SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest
-            REDDIT_CLIENT_ID=REDDIT_CLIENT_ID:latest
-            REDDIT_CLIENT_SECRET=REDDIT_CLIENT_SECRET:latest
             CRON_SECRET_TOKEN=CRON_SECRET_TOKEN:latest
-            REDDIT_USER_AGENT=REDDIT_USER_AGENT:latest
+            # Reddit credentials - uncomment once approved:
+            # REDDIT_CLIENT_ID=REDDIT_CLIENT_ID:latest
+            # REDDIT_CLIENT_SECRET=REDDIT_CLIENT_SECRET:latest
+            # REDDIT_USER_AGENT=REDDIT_USER_AGENT:latest
 
   deploy-frontend:
     runs-on: ubuntu-latest

@@ -72,7 +72,7 @@ class ProductionAgent(BaseAgent):
         """
         [ASYNC] Stitches images and audio into the final Ghibli masterpiece.
         """
-        BUCKET_NAME = "ghibli-assets-1775332583"
+        BUCKET_NAME = "ghibli-assets-prod"
         timestamp = state.get("topic", "ghibli").replace(" ", "_").lower()
         
         try:
@@ -95,7 +95,7 @@ class ProductionAgent(BaseAgent):
             )
             
             # UPLOAD
-            BUCKET_NAME = "ghibli-assets-1775332583"
+            BUCKET_NAME = "ghibli-assets-prod"
             video_url = await asyncio.to_thread(
                 upload_to_gcs, 
                 video_local, 
