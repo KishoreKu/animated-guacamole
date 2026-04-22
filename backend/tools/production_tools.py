@@ -45,19 +45,21 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
                 else:
                     raise Exception(f"Pollinations returned status {response.status_code}")
             
-            model = ImageGenerationModel.from_pretrained(model_id)
-            response = model.generate_images(
+            client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
+            response = client.models.generate_images(
+                model=model_id,
                 prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
-                number_of_images=1,
-                language="en",
-                aspect_ratio="16:9"
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio="16:9"
+                )
             )
             
-            images = list(response.images) if hasattr(response, 'images') else list(response)
-            if not images:
+            if not response.generated_images:
                 raise IndexError(f"Model {model_id} returned empty response.")
                 
-            images[0].save(location=path, include_generation_parameters=False)
+            with open(path, 'wb') as f:
+                f.write(response.generated_images[0].image.image_bytes)
             return path
             
         except Exception as e:
