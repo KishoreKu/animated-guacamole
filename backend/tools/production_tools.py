@@ -71,7 +71,7 @@ def generate_images(prompts: List[str]) -> List[str]:
     """
     Generates images using Google Imagen via Vertex AI in parallel.
     """
-    vertexai.init(project="ghibli-studio-prod", location="us-central1")
+    vertexai.init(project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
     session_id = str(int(time.time()))
     
     # Process up to 5 scenes in parallel to stay within reasonable quota limits
@@ -89,7 +89,7 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
     
-    client = genai.Client(vertexai=True, project="ghibli-studio-prod", location="us-central1")
+    client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
     session_id = str(int(time.time()))
     video_paths = []
     
