@@ -16,6 +16,9 @@ from google.genai import types
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
     """Helper for parallel image generation."""
+    import os
+    import vertexai
+    vertexai.init(project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
     fallback_models = [
         "imagen-3.0-generate-001",
         "imagen-3.0-fast-generate-001",
