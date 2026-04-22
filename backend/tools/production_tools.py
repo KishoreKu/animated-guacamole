@@ -357,5 +357,6 @@ def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str 
     
     blob = bucket.blob(blob_name)
     blob.upload_from_filename(local_path)
-    blob.make_public()
-    return blob.public_url
+    # With uniform bucket-level access, objects don't use ACLs
+    # The URL pattern for public GCS files is:
+    return f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
