@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Force Google Cloud SDKs to use the billing project instead of the Cloud Run host project
+if os.getenv("VERTEX_PROJECT_ID"):
+    os.environ["GOOGLE_CLOUD_PROJECT"] = os.getenv("VERTEX_PROJECT_ID")
+
 app = FastAPI()
 
 # Allow CORS
