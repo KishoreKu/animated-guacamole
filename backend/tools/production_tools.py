@@ -104,8 +104,8 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             print(f"  ◈ Tracking animation with ID: {operation_id}")
             
             while retries < max_retries:
-                # Refresh the operation status
-                operation = client.operations.get(name=operation_id)
+                # Refresh the operation status using the object itself
+                operation = client.operations.get(operation)
                 
                 if operation.done:
                     print(f"  ◈ Scene {i+1} animation FINISHED.")
