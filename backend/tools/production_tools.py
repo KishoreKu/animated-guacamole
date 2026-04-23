@@ -121,14 +121,24 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             # Use local path for final assembly
             path = f"scene_{session_id}_{i}.mp4"
             
-            # Extract video
-            source = operation.response.generated_videos[0]
+            # Check for Errors first
+            if operation.error:
+                raise Exception(f"Veo Error: {operation.error.message}")
+
+            # Extract video (Scavenge for URI in multiple formats)
             uri = None
-            if hasattr(source, 'video') and hasattr(source.video, 'uri'):
-                uri = source.video.uri
-            elif hasattr(source, 'uri'):
-                uri = source.uri
-                
+            if operation.response and operation.response.generated_videos:
+                source = operation.response.generated_videos[0]
+                # Format A: source.video.uri
+                if hasattr(source, 'video') and hasattr(source.video, 'uri'):
+                    uri = source.video.uri
+                # Format B: source.uri
+                elif hasattr(source, 'uri'):
+                    uri = source.uri
+                # Format C: source.video_uri (Legacy/Alternative)
+                elif hasattr(source, 'video_uri'):
+                    uri = source.video_uri
+            
             if uri:
                 print(f"📥 Downloading cinematic scene from {uri}...")
                 # Simple split to get bucket and object
@@ -142,7 +152,9 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
                 blob.download_to_filename(path)
                 video_paths.append(path)
             else:
-                raise Exception("Production response missing video URI.")
+                # DEBUG: If we still can't find it, print the whole response structure
+                print(f"❌ DEBUG: Operation Response Structure: {operation.response}")
+                raise Exception("Production response missing video URI or was blocked by safety filters.")
             
         except Exception as e:
             print(f"❌ Veo production error for scene {i+1}: {str(e)}")
