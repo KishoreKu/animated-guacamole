@@ -80,12 +80,16 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
         # Construct the cinematic prompt based on the universe DNA
         veo_prompt = f"{style_dna['visual_rules']}, cinematic movement, high-fidelity: {prompt}"
         
+        # Force GCS output so we don't have to "scavenge" the response
+        gcs_uri = f"gs://ghibli-scenes-prod/scene_{session_id}_{i}.mp4"
+        
         # Start asynchronous video generation
         operation = client.models.generate_videos(
             model="veo-3.1-generate-001",
             prompt=veo_prompt,
             config=types.GenerateVideosConfig(
                 aspect_ratio="16:9",
+                gcs_output_uri=gcs_uri
             )
         )
         
@@ -107,31 +111,12 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
             raise Exception(f"Veo Error: {operation.error.message}")
 
         path = f"scene_{session_id}_{i}.mp4"
-        uri = None
-        video_bytes = None
         
-        if operation.response:
-            if hasattr(operation.response, 'generated_videos') and operation.response.generated_videos:
-                source = operation.response.generated_videos[0]
-                if hasattr(source, 'video'):
-                    uri = getattr(source.video, 'uri', None)
-                    video_bytes = getattr(source.video, 'data', None)
-                if not uri: uri = getattr(source, 'uri', None)
-                if not video_bytes: video_bytes = getattr(source, 'data', None)
-            elif hasattr(operation.response, 'video'):
-                uri = getattr(operation.response.video, 'uri', None)
-                video_bytes = getattr(operation.response.video, 'data', None)
-
-        if video_bytes:
-            with open(path, 'wb') as f:
-                f.write(video_bytes)
-            return path
-        elif uri:
-            parts = uri.replace("gs://", "").split("/")
-            storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
-            return path
-        else:
-            raise Exception("No video URI or data found in response.")
+        # Download the file from our forced GCS location
+        print(f"📥 Downloading cinematic scene from {gcs_uri}...")
+        parts = gcs_uri.replace("gs://", "").split("/")
+        storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
+        return path
             
     except Exception as e:
         print(f"❌ Veo Error Scene {i+1}: {str(e)}")
