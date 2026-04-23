@@ -175,28 +175,26 @@ async def generate(request: Request):
                     await stream_queue.put(f"data: {json.dumps(output)}\n\n")
                 
                 # --- PERSISTENCE ---
-                if accumulated_state.get("video_url") or accumulated_state.get("image_urls"):
-                    # Use provided style or default to ghibli
-                    current_style = accumulated_state.get("style", "ghibli")
-                    
-                    db_data = {
+                # UNIFIED PERSISTENCE: Use image_urls as the master key for the gallery
+                current_images = accumulated_state.get("image_urls", [])
+                if accumulated_state.get("video_url") or current_images:
+                    save_generation({
                         "topic": accumulated_state.get("topic"),
                         "concept": accumulated_state.get("concept", ""),
                         "video_url": accumulated_state.get("video_url", ""),
-                        "image_urls": accumulated_state.get("image_urls", []),
+                        "image_urls": current_images,
                         "metadata": {
                             "title": accumulated_state.get("metadata", ""),
                             "script": accumulated_state.get("script", ""),
                             "visuals": accumulated_state.get("visuals", ""),
                             "bgm_prompt": accumulated_state.get("bgm_prompt", "") or accumulated_state.get("music_mood", "peaceful_watercolor"),
-                            "style": current_style,
+                            "style": accumulated_state.get("style", "ghibli"),
                             "num_scenes": accumulated_state.get("num_scenes", 5),
-                            "tags": [current_style, "cinematic", accumulated_state.get("topic")]
+                            "tags": [accumulated_state.get("style", "ghibli"), "cinematic", accumulated_state.get("topic")]
                         },
                         "source": "manual",
                         "user_id": user.id
-                    }
-                    save_generation(db_data)
+                    })
                 
                 await stream_queue.put(f"data: {json.dumps({'status': 'done'})}\n\n")
             except Exception as e:

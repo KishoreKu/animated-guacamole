@@ -54,8 +54,7 @@ class ProductionAgent(BaseAgent):
 
             return {
                 "local_image_paths": assets,
-                "scene_urls": asset_urls,
-                "image_urls": asset_urls if not generate_video else [],
+                "image_urls": asset_urls,
                 "status": status,
                 "logs": state["logs"] + [log_msg]
             }
