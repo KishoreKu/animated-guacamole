@@ -145,6 +145,9 @@ async def generate(request: Request):
         # Producer-Consumer queue for the stream
         stream_queue = asyncio.Queue()
         
+        # IMMEDIATELY signal that we are alive to prevent 30s timeouts
+        await stream_queue.put(f"data: {json.dumps({'status': 'running', 'logs': ['✨ Studio link established. Orchestrating agents...']})}\n\n")
+        
         async def heartbeat():
             """Sends a poetic pulse every 10s to keep the connection alive and bypass Cloud Run timeouts."""
             heartbeat_messages = [
@@ -217,7 +220,15 @@ async def generate(request: Request):
             heartbeat_task.cancel()
             orchestrator_task.cancel()
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn
