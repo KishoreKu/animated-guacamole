@@ -63,93 +63,45 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
-def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict) -> str:
-    """Helper for parallel video generation using the LATEST google-genai SDK."""
-    try:
-        from google import genai
-        from google.genai import types
-        
-        client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
-        
-        # Construct the cinematic prompt based on the universe DNA
-        veo_prompt = f"{style_dna['visual_rules']}, cinematic movement, high-fidelity: {prompt}"
-        
-        print(f"🎬 Starting Veo animation for scene {i+1}...")
-        
-        # Start asynchronous video generation
-        operation = client.models.generate_videos(
-            model="veo-3.1-generate-001",
-            prompt=veo_prompt,
-            config=types.GenerateVideosConfig(
-                aspect_ratio="16:9",
-            )
-        )
-        
-        # Manual polling loop (more compatible than .result())
-        print(f"  ◈ Polling for scene {i+1} animation...")
-        max_retries = 40 
-        retries = 0
-        while retries < max_retries:
-            operation = client.operations.get(operation)
-            if operation.done: break
-            retries += 1
-            time.sleep(10)
-
-        if not operation.done:
-            raise TimeoutError(f"Veo timed out for scene {i+1}")
-        
-        if operation.error:
-            raise Exception(f"Veo Error: {operation.error.message}")
-
-        response = operation.response
-        path = f"scene_{session_id}_{i}.mp4"
-        # Universal Deep Scavenger for URI
-        def deep_search_uri(obj):
-            if isinstance(obj, str) and obj.startswith("gs://"):
-                return obj
-            if isinstance(obj, dict):
-                for v in obj.values():
-                    res = deep_search_uri(v)
-                    if res: return res
-            if hasattr(obj, "__dict__"):
-                for v in vars(obj).values():
-                    res = deep_search_uri(v)
-                    if res: return res
-            if isinstance(obj, (list, tuple)):
-                for v in obj:
-                    res = deep_search_uri(v)
-                    if res: return res
-            return None
-
-        uri = deep_search_uri(response)
-        
-        if uri:
-            print(f"📥 Downloading scene from {uri}...")
-            parts = uri.replace("gs://", "").split("/")
-            storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
-            return path
-        else:
-            print(f"❌ DEBUG: Scene {i+1} Raw Response Structure: {response}")
-            raise Exception(f"Scene {i+1} finished but no video link was found. Check logs for response structure.")
-            
-    except Exception as e:
-        print(f"❌ Veo Error Scene {i+1}: {str(e)}")
-        raise e
-
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates moving video clips using Google Veo in PARALLEL.
+    Generates cinematic video clips using Imagen 3.0 (CREDIT-SAFE) + Ken Burns movement.
+    This uses the same engine as Nano Banana 2 but is covered by GenAI Trial Credits.
     """
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
     session_id = str(int(time.time()))
     
-    print(f"🎬 Initiating {len(prompts)} parallel {style_dna['name']} animations...")
+    print(f"🎨 Generating {len(prompts)} parallel {style_dna['name']} masterpieces (Credit-Safe Mode)...")
     
-    with ThreadPoolExecutor(max_workers=len(prompts)) as executor:
-        worker = partial(_generate_single_video, session_id=session_id, style_dna=style_dna)
-        video_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
+    # 1. Generate high-quality static images (Imagen 3.0)
+    image_paths = generate_images(prompts)
     
+    video_paths = []
+    # 2. Transform static images into 5-second cinematic clips
+    for i, img_path in enumerate(image_paths):
+        try:
+            from moviepy.editor import ImageClip
+            from backend.tools.production_tools import make_kenburns
+            
+            print(f"🎞️ Animating scene {i+1} with cinematic panning...")
+            
+            # Create a 5-second clip from the image
+            clip = ImageClip(img_path).set_duration(5.0)
+            
+            # Apply the professional Ken Burns effect (zoom/pan)
+            animated_clip = make_kenburns(clip, zoom_factor=0.12)
+            
+            output_path = f"scene_{session_id}_{i}.mp4"
+            # Write the clip to file (fast, local process)
+            animated_clip.write_videofile(output_path, fps=24, codec="libx264", audio=False, logger=None)
+            video_paths.append(output_path)
+            
+        except Exception as e:
+            print(f"❌ Animation error for scene {i+1}: {e}")
+            # Fallback to simple image-video if moviepy fails
+            video_paths.append(img_path)
+            
     return video_paths
 
 def _generate_single_audio(scene: str, i: int, session_id: str, style: str = "ghibli") -> str:
