@@ -19,32 +19,14 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
     import os
     import vertexai
     vertexai.init(project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
-    fallback_models = [
-        "imagen-3.0-generate-001",
-        "imagen-3.0-fast-generate-001",
-        "imagegeneration@006",
-        "imagegeneration@005",
-        "pollinations"
-    ]
+    # Use only the production-grade Imagen 3 model if needed as a base
+    model_id = "imagen-3.0-generate-001"
     
     print(f"🎨 Painting scene {i+1}...")
     path = f"scene_{session_id}_{i}.png"
     
-    for model_id in fallback_models:
+    for _ in range(1): # Try once with production model
         try:
-            if model_id == "pollinations":
-                import requests
-                from urllib.parse import quote
-                prompt_encoded = quote(f"Studio Ghibli style, soft watercolor aesthetic, high quality animation still: {prompt}")
-                url = f"https://image.pollinations.ai/prompt/{prompt_encoded}?width=1280&height=720&nologo=true"
-                response = requests.get(url)
-                if response.status_code == 200:
-                    with open(path, 'wb') as f:
-                        f.write(response.content)
-                    return path
-                else:
-                    raise Exception(f"Pollinations returned status {response.status_code}")
-            
             client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
             response = client.models.generate_images(
                 model=model_id,
@@ -63,14 +45,8 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
             return path
             
         except Exception as e:
-            err_str = str(e)
-            if any(x in err_str for x in ["429", "Quota", "range", "empty", "400", "404", "life", "pollinations"]):
-                print(f"⚠️ {model_id} failed for scene {i+1}. Falling back...")
-                continue
-            else:
-                raise e
-                
-    raise Exception(f"All models failed for scene {i+1}")
+            print(f"❌ Imagen production error for scene {i+1}: {str(e)}")
+            raise e
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
@@ -154,10 +130,8 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
                 raise Exception("Production response missing video URI.")
             
         except Exception as e:
-            print(f"⚠️ Veo bypass for scene {i+1} (Fallback to Ken Burns): {str(e)}")
-            # Fallback to image generation
-            img_path = _generate_single_image(prompt, i, session_id)
-            video_paths.append(img_path)
+            print(f"❌ Veo production error for scene {i+1}: {str(e)}")
+            raise e
             
     return video_paths
 
