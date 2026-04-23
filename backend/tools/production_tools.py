@@ -86,7 +86,6 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
                 prompt=veo_prompt,
                 config=types.GenerateVideosConfig(
                     aspect_ratio="16:9",
-                    include_audio=True
                 )
             )
             
