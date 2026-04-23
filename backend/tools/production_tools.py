@@ -72,43 +72,56 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
     
     client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
 def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict) -> str:
-    """Helper for parallel video generation using the stable Vertex AI SDK."""
+    """Helper for parallel video generation using the LATEST google-genai SDK."""
     try:
-        from vertexai.preview.vision_models import VideoGenerationModel
-        import vertexai
+        from google import genai
+        from google.genai import types
         
-        project_id = os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod")
-        vertexai.init(project=project_id, location="us-central1")
-        
-        model = VideoGenerationModel.from_pretrained("veo-3.1-generate-001")
+        client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
         
         # Construct the cinematic prompt based on the universe DNA
         veo_prompt = f"{style_dna['visual_rules']}, cinematic movement, high-fidelity: {prompt}"
         
         print(f"🎬 Starting Veo animation for scene {i+1}...")
         
-        # This is a blocking call in the stable SDK, which is perfect for our ThreadPool
-        video = model.generate_video(
+        # Start asynchronous video generation
+        operation = client.models.generate_videos(
+            model="veo-3.1-generate-001",
             prompt=veo_prompt,
-            aspect_ratio="16:9"
+            config=types.GenerateVideosConfig(
+                aspect_ratio="16:9",
+            )
         )
         
+        # Official polling method: blocks until done and returns the result
+        # We use a timeout to avoid hanging forever
+        print(f"  ◈ Waiting for scene {i+1} result (this takes 60-120s)...")
+        response = operation.result(timeout=300) # 5 minute timeout
+        
         path = f"scene_{session_id}_{i}.mp4"
+        uri = None
         
-        # Save locally for stitching
-        video.save(path)
+        # Universal Scavenger for URI
+        if response and response.generated_videos:
+            source = response.generated_videos[0]
+            # Try all known formats
+            if hasattr(source, 'video') and hasattr(source.video, 'uri'):
+                uri = source.video.uri
+            elif hasattr(source, 'uri'):
+                uri = source.uri
+            elif hasattr(source, 'gcs_uri'):
+                uri = source.gcs_uri
         
-        # Also upload to our scenes bucket for approval/backup
-        print(f"📤 Uploading scene {i+1} to GCS bucket...")
-        storage_client = storage.Client()
-        bucket = storage_client.bucket("ghibli-scenes-prod")
-        blob = bucket.blob(path)
-        blob.upload_from_filename(path)
-        
-        return path
+        if uri:
+            print(f"📥 Downloading scene from {uri}...")
+            parts = uri.replace("gs://", "").split("/")
+            storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
+            return path
+        else:
+            raise Exception("Scene finished but no video link was found in the response.")
             
     except Exception as e:
-        print(f"❌ Veo Enterprise Error Scene {i+1}: {str(e)}")
+        print(f"❌ Veo Error Scene {i+1}: {str(e)}")
         raise e
 
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
