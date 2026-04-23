@@ -146,17 +146,20 @@ async def generate(request: Request):
         stream_queue = asyncio.Queue()
         
         async def heartbeat():
-            """Sends a poetic pulse every 15s to keep the connection alive."""
+            """Sends a poetic pulse every 10s to keep the connection alive and bypass Cloud Run timeouts."""
             heartbeat_messages = [
                 "💓 Studio heartbeat... Keep-alive active.",
                 "✨ The spirits are weaving your world...",
                 "🎨 Mixing watercolors and memories...",
-                "🎞️ Finalizing the cinematic reels..."
+                "🎞️ Finalizing the cinematic reels...",
+                "🌀 Deep in the animation engine...",
+                "⏳ Quality takes time... Almost there."
             ]
             import random
             while True:
-                await asyncio.sleep(15)
+                await asyncio.sleep(10)
                 msg = random.choice(heartbeat_messages)
+                # Send a heartbeat that specifically updates the logs so the UI feels alive
                 await stream_queue.put(f"data: {json.dumps({'status': 'heartbeat', 'logs': [f'🍃 {msg}']})}\n\n")
 
         async def run_orchestrator():
