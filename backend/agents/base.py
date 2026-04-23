@@ -1,6 +1,6 @@
 import os
 from typing import List, Any
-from langchain_google_vertexai import ChatVertexAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from backend.state import GraphState
 from dotenv import load_dotenv
@@ -8,15 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class BaseAgent:
-    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "gemini-2.5-pro"):
+    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "gemini-1.5-flash"):
         self.name = name
         self.persona = persona
-        # Configure for Google Gemini
+        # Configure for Google Gemini (Free Tier Compatible)
         try:
-            self.llm = ChatVertexAI(
-                model_name=model_name,
-                project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"),
-                location="us-central1",
+            self.llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
                 temperature=0.7,
             )
         except Exception:

@@ -15,44 +15,32 @@ from google import genai
 from google.genai import types
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
-    """Helper for parallel image generation."""
-    import os
-    import vertexai
-    vertexai.init(project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
-    # Use only the production-grade Imagen 3 model if needed as a base
-    model_id = "imagen-3.0-generate-001"
+    """Helper for parallel image generation using Pollinations.ai (FREE & High Quality)."""
+    import requests
+    import urllib.parse
     
-    print(f"🎨 Painting scene {i+1}...")
+    print(f"🎨 Painting scene {i+1} (Free Tier)...")
     path = f"scene_{session_id}_{i}.png"
     
-    for _ in range(1): # Try once with production model
-        try:
-            client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
-            response = client.models.generate_images(
-                model=model_id,
-                prompt=f"Studio Ghibli style, soft watercolor aesthetic, high quality: {prompt}",
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio="16:9"
-                )
-            )
-            
-            if not response.generated_images:
-                raise IndexError(f"Model {model_id} returned empty response.")
-                
-            with open(path, 'wb') as f:
-                f.write(response.generated_images[0].image.image_bytes)
-            return path
-            
-        except Exception as e:
-            print(f"❌ Imagen production error for scene {i+1}: {str(e)}")
-            raise e
+    # Clean prompt for Ghibli aesthetic
+    encoded_prompt = urllib.parse.quote(f"Studio Ghibli style, soft watercolor aesthetic, masterpiece, {prompt}")
+    # Using the flux model on Pollinations for incredible Ghibli quality
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&nologo=true&model=flux"
+    
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        with open(path, 'wb') as f:
+            f.write(response.content)
+        return path
+    except Exception as e:
+        print(f"❌ Image generation error for scene {i+1}: {str(e)}")
+        raise e
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
-    Generates images using Google Imagen via Vertex AI in parallel.
+    Generates images using Pollinations.ai in parallel.
     """
-    vertexai.init(project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
     session_id = str(int(time.time()))
     
     # Process up to 5 scenes in parallel to stay within reasonable quota limits
@@ -294,15 +282,22 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     return output_filename
 
 def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str = None):
-    """Uploads a file to GCS. Uses basename if destination_blob_name is omitted."""
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
+    """Safety Mode: Saves to local archive instead of GCS to avoid billing errors."""
+    import shutil
     
-    # If no destination name provided, use the local filename
-    blob_name = destination_blob_name if destination_blob_name else os.path.basename(local_path)
+    # Define local archive path (matches backend/main.py static mount)
+    archive_dir = os.path.join(os.path.dirname(__file__), "..", "public", "archive")
+    if not os.path.exists(archive_dir):
+        os.makedirs(archive_dir, exist_ok=True)
+        
+    filename = destination_blob_name if destination_blob_name else os.path.basename(local_path)
+    dest_path = os.path.join(archive_dir, filename)
     
-    blob = bucket.blob(blob_name)
-    blob.upload_from_filename(local_path)
-    # With uniform bucket-level access, objects don't use ACLs
-    # The URL pattern for public GCS files is:
-    return f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
+    try:
+        shutil.copy2(local_path, dest_path)
+        print(f"✅ Asset archived locally: {filename}")
+        # Return the local URL path served by FastAPI
+        return f"/archive/{filename}"
+    except Exception as e:
+        print(f"⚠️ Local archival failed: {e}")
+        return local_path
