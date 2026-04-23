@@ -71,70 +71,58 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
     style_dna = get_style_data(style)
     
     client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
-    session_id = str(int(time.time()))
-    video_paths = []
-    
-def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict, client: genai.Client) -> str:
-    """Helper for parallel video generation."""
+def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict) -> str:
+    """Helper for parallel video generation using the stable Vertex AI SDK."""
     try:
+        from vertexai.preview.vision_models import VideoGenerationModel
+        import vertexai
+        
+        project_id = os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod")
+        vertexai.init(project=project_id, location="us-central1")
+        
+        model = VideoGenerationModel.from_pretrained("veo-3.1-generate-001")
+        
         # Construct the cinematic prompt based on the universe DNA
         veo_prompt = f"{style_dna['visual_rules']}, cinematic movement, high-fidelity: {prompt}"
         
-        # Force GCS output so we don't have to "scavenge" the response
-        gcs_uri = f"gs://ghibli-scenes-prod/scene_{session_id}_{i}.mp4"
+        print(f"🎬 Starting Veo animation for scene {i+1}...")
         
-        # Start asynchronous video generation
-        operation = client.models.generate_videos(
-            model="veo-3.1-generate-001",
+        # This is a blocking call in the stable SDK, which is perfect for our ThreadPool
+        video = model.generate_video(
             prompt=veo_prompt,
-            config=types.GenerateVideosConfig(
-                aspect_ratio="16:9",
-                gcs_output_uri=gcs_uri
-            )
+            aspect_ratio="16:9"
         )
         
-        # Poll for completion
-        max_retries = 40 
-        retries = 0
-        operation_id = operation.name if hasattr(operation, 'name') else str(operation)
-        
-        while retries < max_retries:
-            operation = client.operations.get(operation)
-            if operation.done: break
-            retries += 1
-            time.sleep(10)
-
-        if not operation.done:
-            raise TimeoutError(f"Veo timed out for scene {i+1}")
-        
-        if operation.error:
-            raise Exception(f"Veo Error: {operation.error.message}")
-
         path = f"scene_{session_id}_{i}.mp4"
         
-        # Download the file from our forced GCS location
-        print(f"📥 Downloading cinematic scene from {gcs_uri}...")
-        parts = gcs_uri.replace("gs://", "").split("/")
-        storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
+        # Save locally for stitching
+        video.save(path)
+        
+        # Also upload to our scenes bucket for approval/backup
+        print(f"📤 Uploading scene {i+1} to GCS bucket...")
+        storage_client = storage.Client()
+        bucket = storage_client.bucket("ghibli-scenes-prod")
+        blob = bucket.blob(path)
+        blob.upload_from_filename(path)
+        
         return path
             
     except Exception as e:
-        print(f"❌ Veo Error Scene {i+1}: {str(e)}")
+        print(f"❌ Veo Enterprise Error Scene {i+1}: {str(e)}")
         raise e
 
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates moving video clips using Google Veo in PARALLEL.
+    Generates moving video clips using the STABLE Vertex AI Enterprise SDK in parallel.
     """
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
-    client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
     session_id = str(int(time.time()))
     
-    print(f"🎬 Initiating {len(prompts)} parallel {style_dna['name']} animations...")
+    print(f"🎬 Initiating {len(prompts)} parallel Enterprise animations...")
     
     with ThreadPoolExecutor(max_workers=len(prompts)) as executor:
-        worker = partial(_generate_single_video, session_id=session_id, style_dna=style_dna, client=client)
+        worker = partial(_generate_single_video, session_id=session_id, style_dna=style_dna)
         video_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
     
     return video_paths
