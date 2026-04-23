@@ -90,12 +90,15 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             )
             
             # Poll for completion (video takes about 60-120 seconds)
-            max_retries = 18 # 3 minutes total
+            max_retries = 36 # 6 minutes total (Veo 3.1 can be slow for high-fidelity)
             retries = 0
+            
+            # Get the operation name safely
+            operation_id = operation.name if hasattr(operation, 'name') else str(operation)
+            
             while not operation.done and retries < max_retries:
                 time.sleep(10)
-                # Ensure we pass the operation object or its name correctly
-                operation = client.operations.get(operation.name)
+                operation = client.operations.get(operation_id)
                 retries += 1
                 print(f"  ◈ Scene {i+1} animation in progress (Wait pulse {retries})...")
 
