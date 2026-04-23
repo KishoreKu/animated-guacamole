@@ -96,6 +96,19 @@ class ProductionAgent(BaseAgent):
             
             # UPLOAD
             BUCKET_NAME = "ghibli-assets-prod"
+            
+            # Upload images first
+            image_urls = []
+            for img_path in image_paths:
+                img_url = await asyncio.to_thread(
+                    upload_to_gcs, 
+                    img_path, 
+                    BUCKET_NAME, 
+                    destination_blob_name=f"images/{os.path.basename(img_path)}"
+                )
+                image_urls.append(img_url)
+
+            # Upload video
             video_url = await asyncio.to_thread(
                 upload_to_gcs, 
                 video_local, 
@@ -106,6 +119,7 @@ class ProductionAgent(BaseAgent):
             # LOG SUCCESS
             return {
                 "video_url": video_url,
+                "image_urls": image_urls,
                 "status": "completed",
                 "logs": state["logs"] + [
                     "🎬 Masterpiece delivered! Cinematic Ghibli video is ready.",
