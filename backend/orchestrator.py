@@ -25,20 +25,15 @@ def create_orchestrator():
     # Set entry point
     workflow.set_entry_point("concept")
 
-    # Add linear edges
+    # Sequential Flow: Concept -> Visuals -> Image Gen -> Metadata -> END
+    # This ensures the UI stays connected while the heavy image generation runs.
     workflow.add_edge("concept", "visuals")
-    workflow.add_edge("concept", "metadata")
-    
-    # Asset pipeline: visuals -> image_gen -> END (Wait for Approval)
     workflow.add_edge("visuals", "image_gen")
-    workflow.add_edge("image_gen", END)
-    
-    # The finalize_video node will be called manually via a separate endpoint after approval
-    workflow.add_edge("finalize_video", END)
-    
-    # metadata can finish on its own or join finalize_video if you want to wait. 
-    # Let's let it finish naturally so other agents don't wait for it if they are faster.
+    workflow.add_edge("image_gen", "metadata")
     workflow.add_edge("metadata", END)
+    
+    # The finalize_video node remains as a manual trigger after approval
+    workflow.add_edge("finalize_video", END)
 
     return workflow.compile()
 
