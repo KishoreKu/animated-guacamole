@@ -6,13 +6,15 @@ import re
 from typing import List
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-import vertexai
-from vertexai.preview.vision_models import ImageGenerationModel
-from google.cloud import texttospeech
-from google.cloud import storage
+# Safety Mode: Removed global vertexai/genai imports to prevent disabled project authentication errors on startup.
+# They are now only imported locally if needed within specific functions.
+# import vertexai
+# from vertexai.preview.vision_models import ImageGenerationModel
+# from google.cloud import texttospeech
+# from google.cloud import storage
 from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
-from google import genai
-from google.genai import types
+# from google import genai
+# from google.genai import types
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
     """Helper for parallel image generation using Pollinations.ai (FREE & High Quality)."""
