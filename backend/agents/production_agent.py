@@ -29,12 +29,26 @@ class ProductionAgent(BaseAgent):
             
             # Offload to the upgraded Veo engine (Universal Motion)
             # This handles animation and auto-fallback to images if needed
-            from backend.tools.production_tools import generate_video_clips
+            from backend.tools.production_tools import generate_video_clips, upload_to_gcs
             video_clips = await asyncio.to_thread(generate_video_clips, prompts, style=style)
             
+            # UPLOAD CLIPS FOR APPROVAL
+            SCENE_BUCKET = "ghibli-scenes-prod"
+            scene_urls = []
+            for clip_path in video_clips:
+                scene_url = await asyncio.to_thread(
+                    upload_to_gcs, 
+                    clip_path, 
+                    SCENE_BUCKET, 
+                    destination_blob_name=f"scenes/{os.path.basename(clip_path)}"
+                )
+                scene_urls.append(scene_url)
+
             return {
-                "local_image_paths": video_clips, # Reusing this field to hold video segments
-                "logs": state["logs"] + [f"🎬 {len(video_clips)} cinematic {style} clips rendered with Veo."]
+                "local_image_paths": video_clips,
+                "scene_urls": scene_urls,
+                "status": "awaiting_approval",
+                "logs": state["logs"] + [f"🎬 {len(video_clips)} cinematic {style} clips rendered with NATIVE AUDIO. Please approve in the dashboard."]
             }
         except Exception as e:
             return {"logs": state["logs"] + [f"🚨 Image generation error: {str(e)}"], "status": "error"}
@@ -94,19 +108,8 @@ class ProductionAgent(BaseAgent):
                 music_mood=state.get("music_mood")
             )
             
-            # UPLOAD
+            # UPLOAD FINAL VIDEO
             BUCKET_NAME = "ghibli-assets-prod"
-            
-            # Upload images first
-            image_urls = []
-            for img_path in image_paths:
-                img_url = await asyncio.to_thread(
-                    upload_to_gcs, 
-                    img_path, 
-                    BUCKET_NAME, 
-                    destination_blob_name=f"images/{os.path.basename(img_path)}"
-                )
-                image_urls.append(img_url)
 
             # Upload video
             video_url = await asyncio.to_thread(
@@ -119,7 +122,7 @@ class ProductionAgent(BaseAgent):
             # LOG SUCCESS
             return {
                 "video_url": video_url,
-                "image_urls": image_urls,
+                "scene_urls": state.get("scene_urls", []),
                 "status": "completed",
                 "logs": state["logs"] + [
                     "🎬 Masterpiece delivered! Cinematic Ghibli video is ready.",

@@ -110,6 +110,7 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
                 prompt=veo_prompt,
                 config=types.GenerateVideosConfig(
                     aspect_ratio="16:9",
+                    include_audio=True
                 )
             )
             
@@ -284,18 +285,20 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     clips = []
     # Use asset_paths as the master list so we don't skip scenes if audio is missing
     for i, asset_p in enumerate(asset_paths):
-        # Fallback to 5s if audio is missing
         audio_p = audio_paths[i] if i < len(audio_paths) else None
-        
-        if audio_p and os.path.exists(audio_p):
-            audio_clip = AudioFileClip(audio_p)
-            duration = audio_clip.duration
-        else:
-            audio_clip = None
-            duration = 5.0 # Atmospheric fallback
-        
         if asset_p.endswith(".mp4"):
             video_clip = VideoFileClip(asset_p)
+            # Use native audio if present
+            if video_clip.audio:
+                audio_clip = video_clip.audio
+                duration = video_clip.duration
+            elif audio_p and os.path.exists(audio_p):
+                audio_clip = AudioFileClip(audio_p)
+                duration = audio_clip.duration
+            else:
+                audio_clip = None
+                duration = 5.0
+            
             if video_clip.duration < duration:
                 video_clip = video_clip.loop(duration=duration)
             else:
