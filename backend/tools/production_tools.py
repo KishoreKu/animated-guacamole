@@ -63,14 +63,6 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
-def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
-    """
-    Generates moving video clips using Google Veo on Vertex AI.
-    """
-    from backend.tools.style_manager import get_style_data
-    style_dna = get_style_data(style)
-    
-    client = genai.Client(vertexai=True, project=os.getenv("VERTEX_PROJECT_ID", "ghibli-studio-prod"), location="us-central1")
 def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict) -> str:
     """Helper for parallel video generation using the LATEST google-genai SDK."""
     try:
@@ -94,7 +86,6 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
         )
         
         # Official polling method: blocks until done and returns the result
-        # We use a timeout to avoid hanging forever
         print(f"  ◈ Waiting for scene {i+1} result (this takes 60-120s)...")
         response = operation.result(timeout=300) # 5 minute timeout
         
@@ -104,7 +95,6 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
         # Universal Scavenger for URI
         if response and response.generated_videos:
             source = response.generated_videos[0]
-            # Try all known formats
             if hasattr(source, 'video') and hasattr(source.video, 'uri'):
                 uri = source.video.uri
             elif hasattr(source, 'uri'):
@@ -126,13 +116,13 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
 
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates moving video clips using the STABLE Vertex AI Enterprise SDK in parallel.
+    Generates moving video clips using Google Veo in PARALLEL.
     """
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
     session_id = str(int(time.time()))
     
-    print(f"🎬 Initiating {len(prompts)} parallel Enterprise animations...")
+    print(f"🎬 Initiating {len(prompts)} parallel {style_dna['name']} animations...")
     
     with ThreadPoolExecutor(max_workers=len(prompts)) as executor:
         worker = partial(_generate_single_video, session_id=session_id, style_dna=style_dna)
