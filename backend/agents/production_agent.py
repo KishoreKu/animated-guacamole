@@ -14,11 +14,12 @@ class ProductionAgent(BaseAgent):
 
     async def generate_images_node(self, state: GraphState) -> GraphState:
         """
-        [ASYNC] Generates cinematic video clips using Google Veo via a background thread.
+        [ASYNC] Generates either cinematic clips or static paintings based on the toggle.
         """
         try:
             num_scenes = state.get('num_scenes', 5)
             style = state.get('style', 'ghibli')
+            generate_video = state.get('generate_video', True)
             
             # Parse Visual Prompts
             prompts = [re.sub(r"^\d+[\.\)]\s*", "", line).strip() for line in state["visuals"].split("\n") if line.strip() and (line[0].isdigit() or line.startswith("-"))]
@@ -27,31 +28,39 @@ class ProductionAgent(BaseAgent):
             
             prompts = prompts[:num_scenes]
             
-            # Offload to the upgraded Veo engine (Universal Motion)
-            # This handles animation and auto-fallback to images if needed
-            from backend.tools.production_tools import generate_video_clips, upload_to_gcs
-            video_clips = await asyncio.to_thread(generate_video_clips, prompts, style=style)
+            from backend.tools.production_tools import generate_video_clips, generate_images, upload_to_gcs
             
-            # UPLOAD CLIPS FOR APPROVAL
-            SCENE_BUCKET = "ghibli-scenes-prod"
-            scene_urls = []
-            for clip_path in video_clips:
-                scene_url = await asyncio.to_thread(
+            if generate_video:
+                # CINEMATIC VIDEO MODE
+                assets = await asyncio.to_thread(generate_video_clips, prompts, style=style)
+                log_msg = f"🎬 {len(assets)} cinematic {style} clips rendered. Please approve in the dashboard."
+                status = "awaiting_approval"
+            else:
+                # STATIC PAINTING MODE (Free & Fast)
+                assets = await asyncio.to_thread(generate_images, prompts)
+                log_msg = f"🎨 {len(assets)} high-res {style} paintings completed."
+                status = "completed"
+
+            # UPLOAD ASSETS
+            asset_urls = []
+            for asset_path in assets:
+                url = await asyncio.to_thread(
                     upload_to_gcs, 
-                    clip_path, 
-                    SCENE_BUCKET, 
-                    destination_blob_name=f"scenes/{os.path.basename(clip_path)}"
+                    asset_path, 
+                    "ghibli-scenes-prod", 
+                    destination_blob_name=f"scenes/{os.path.basename(asset_path)}"
                 )
-                scene_urls.append(scene_url)
+                asset_urls.append(url)
 
             return {
-                "local_image_paths": video_clips,
-                "scene_urls": scene_urls,
-                "status": "awaiting_approval",
-                "logs": state["logs"] + [f"🎬 {len(video_clips)} cinematic {style} clips rendered with NATIVE AUDIO. Please approve in the dashboard."]
+                "local_image_paths": assets,
+                "scene_urls": asset_urls,
+                "image_urls": asset_urls if not generate_video else [],
+                "status": status,
+                "logs": state["logs"] + [log_msg]
             }
         except Exception as e:
-            return {"logs": state["logs"] + [f"🚨 Image generation error: {str(e)}"], "status": "error"}
+            return {"logs": state["logs"] + [f"🚨 Production error: {str(e)}"], "status": "error"}
 
     async def generate_audio_node(self, state: GraphState) -> GraphState:
         """
