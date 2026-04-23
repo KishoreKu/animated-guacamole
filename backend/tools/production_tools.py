@@ -94,13 +94,26 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             retries = 0
             
             # Get the operation name safely
-            operation_id = operation.name if hasattr(operation, 'name') else str(operation)
+            if isinstance(operation, str):
+                operation_id = operation
+            elif hasattr(operation, 'name'):
+                operation_id = operation.name
+            else:
+                operation_id = str(operation)
             
-            while not operation.done and retries < max_retries:
-                time.sleep(10)
-                operation = client.operations.get(operation_id)
+            print(f"  ◈ Tracking animation with ID: {operation_id}")
+            
+            while retries < max_retries:
+                # Refresh the operation status
+                operation = client.operations.get(name=operation_id)
+                
+                if operation.done:
+                    print(f"  ◈ Scene {i+1} animation FINISHED.")
+                    break
+                
                 retries += 1
                 print(f"  ◈ Scene {i+1} animation in progress (Wait pulse {retries})...")
+                time.sleep(10)
 
             if not operation.done:
                 raise TimeoutError(f"Veo timed out after 3 minutes for scene {i+1}")
