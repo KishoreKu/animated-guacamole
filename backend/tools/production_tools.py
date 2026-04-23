@@ -103,17 +103,25 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
 
         response = operation.response
         path = f"scene_{session_id}_{i}.mp4"
-        uri = None
-        
-        # Universal Scavenger for URI
-        if response and hasattr(response, 'generated_videos') and response.generated_videos:
-            source = response.generated_videos[0]
-            if hasattr(source, 'video') and hasattr(source.video, 'uri'):
-                uri = source.video.uri
-            elif hasattr(source, 'uri'):
-                uri = source.uri
-            elif hasattr(source, 'gcs_uri'):
-                uri = source.gcs_uri
+        # Universal Deep Scavenger for URI
+        def deep_search_uri(obj):
+            if isinstance(obj, str) and obj.startswith("gs://"):
+                return obj
+            if isinstance(obj, dict):
+                for v in obj.values():
+                    res = deep_search_uri(v)
+                    if res: return res
+            if hasattr(obj, "__dict__"):
+                for v in vars(obj).values():
+                    res = deep_search_uri(v)
+                    if res: return res
+            if isinstance(obj, (list, tuple)):
+                for v in obj:
+                    res = deep_search_uri(v)
+                    if res: return res
+            return None
+
+        uri = deep_search_uri(response)
         
         if uri:
             print(f"📥 Downloading scene from {uri}...")
@@ -121,7 +129,8 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
             storage.Client().bucket(parts[0]).blob("/".join(parts[1:])).download_to_filename(path)
             return path
         else:
-            raise Exception("Scene finished but no video link was found in the response.")
+            print(f"❌ DEBUG: Scene {i+1} Raw Response Structure: {response}")
+            raise Exception(f"Scene {i+1} finished but no video link was found. Check logs for response structure.")
             
     except Exception as e:
         print(f"❌ Veo Error Scene {i+1}: {str(e)}")
