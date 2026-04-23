@@ -85,15 +85,28 @@ def _generate_single_video(prompt: str, i: int, session_id: str, style_dna: dict
             )
         )
         
-        # Official polling method: blocks until done and returns the result
-        print(f"  ◈ Waiting for scene {i+1} result (this takes 60-120s)...")
-        response = operation.result(timeout=300) # 5 minute timeout
+        # Manual polling loop (more compatible than .result())
+        print(f"  ◈ Polling for scene {i+1} animation...")
+        max_retries = 40 
+        retries = 0
+        while retries < max_retries:
+            operation = client.operations.get(operation)
+            if operation.done: break
+            retries += 1
+            time.sleep(10)
+
+        if not operation.done:
+            raise TimeoutError(f"Veo timed out for scene {i+1}")
         
+        if operation.error:
+            raise Exception(f"Veo Error: {operation.error.message}")
+
+        response = operation.response
         path = f"scene_{session_id}_{i}.mp4"
         uri = None
         
         # Universal Scavenger for URI
-        if response and response.generated_videos:
+        if response and hasattr(response, 'generated_videos') and response.generated_videos:
             source = response.generated_videos[0]
             if hasattr(source, 'video') and hasattr(source.video, 'uri'):
                 uri = source.video.uri
