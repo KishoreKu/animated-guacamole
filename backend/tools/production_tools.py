@@ -125,27 +125,37 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             if operation.error:
                 raise Exception(f"Veo Error: {operation.error.message}")
 
-            # Extract video (Scavenge for URI in multiple formats)
+            # Extract video (Aggressive Scavenging)
             uri = None
-            if operation.response and operation.response.generated_videos:
-                source = operation.response.generated_videos[0]
-                # Format A: source.video.uri
-                if hasattr(source, 'video') and hasattr(source.video, 'uri'):
-                    uri = source.video.uri
-                # Format B: source.uri
-                elif hasattr(source, 'uri'):
-                    uri = source.uri
-                # Format C: source.video_uri (Legacy/Alternative)
-                elif hasattr(source, 'video_uri'):
-                    uri = source.video_uri
+            video_bytes = None
             
-            if uri:
+            if operation.response:
+                # 1. Check generated_videos list
+                if hasattr(operation.response, 'generated_videos') and operation.response.generated_videos:
+                    source = operation.response.generated_videos[0]
+                    # Check for video.uri or video.data
+                    if hasattr(source, 'video'):
+                        uri = getattr(source.video, 'uri', None)
+                        video_bytes = getattr(source.video, 'data', None)
+                    # Check for direct uri/data
+                    if not uri: uri = getattr(source, 'uri', None)
+                    if not video_bytes: video_bytes = getattr(source, 'data', None)
+                
+                # 2. Check for direct video object in response
+                elif hasattr(operation.response, 'video'):
+                    uri = getattr(operation.response.video, 'uri', None)
+                    video_bytes = getattr(operation.response.video, 'data', None)
+
+            if video_bytes:
+                print(f"📥 Saving cinematic scene from inlined data ({len(video_bytes)} bytes)...")
+                with open(path, 'wb') as f:
+                    f.write(video_bytes)
+                video_paths.append(path)
+            elif uri:
                 print(f"📥 Downloading cinematic scene from {uri}...")
-                # Simple split to get bucket and object
                 parts = uri.replace("gs://", "").split("/")
                 bucket_name = parts[0]
                 object_name = "/".join(parts[1:])
-                
                 storage_client = storage.Client()
                 bucket = storage_client.bucket(bucket_name)
                 blob = bucket.blob(object_name)
@@ -154,7 +164,7 @@ def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]
             else:
                 # DEBUG: If we still can't find it, print the whole response structure
                 print(f"❌ DEBUG: Operation Response Structure: {operation.response}")
-                raise Exception("Production response missing video URI or was blocked by safety filters.")
+                raise Exception("Production response missing video URI or data. This may be due to a safety block or an unsupported response format.")
             
         except Exception as e:
             print(f"❌ Veo production error for scene {i+1}: {str(e)}")
