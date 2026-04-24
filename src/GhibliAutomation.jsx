@@ -273,14 +273,15 @@ export default function GhibliAutomation() {
             Object.entries(data).forEach(([nodeName, delta]) => {
               if (!delta || typeof delta !== 'object') return;
 
+              // Merge all properties from delta into accumulatedState
               accumulatedState = { ...accumulatedState, ...delta };
               setStatus(nodeName, "done");
               
               if (delta[nodeName]) setOutput(nodeName, delta[nodeName]);
               if (Array.isArray(delta.logs)) delta.logs.forEach(l => addLog(l));
 
-              if (nodeName === "production") {
-                // Keep the final result state updated
+              // Special handling for production updates to show clips immediately
+              if (nodeName === "production" || nodeName === "audio" || nodeName === "finalize_video") {
                 setFinalResult({ ...accumulatedState });
               } else {
                 const nextAgentMap = { concept: "script", script: "visuals", visuals: "metadata", metadata: "production" };
