@@ -4,36 +4,44 @@ import requests
 import json
 import re
 from typing import List
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-# Safety Mode: Removed global vertexai/genai imports to prevent disabled project authentication errors on startup.
-# They are now only imported locally if needed within specific functions.
-# import vertexai
-# from vertexai.preview.vision_models import ImageGenerationModel
-# from google.cloud import texttospeech
-# from google.cloud import storage
 from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
-# from google import genai
-# from google.genai import types
+
+
+def _get_imagen_client():
+    """Returns a configured google-genai client using the GOOGLE_API_KEY."""
+    from google import genai
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
+    return genai.Client(api_key=api_key)
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
-    """Helper for parallel image generation using Pollinations.ai (FREE & High Quality)."""
-    import requests
-    import urllib.parse
+    """Helper for image generation using Google Imagen 4.0 (Pro subscription)."""
+    from google.genai import types
     
-    print(f"🎨 Painting scene {i+1} (Free Tier)...")
+    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")
     path = f"scene_{session_id}_{i}.png"
     
-    # Clean prompt for Ghibli aesthetic
-    encoded_prompt = urllib.parse.quote(f"Studio Ghibli style, soft watercolor aesthetic, masterpiece, {prompt}")
-    # Using the flux model on Pollinations for incredible Ghibli quality
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&nologo=true&model=flux"
+    # Enhance prompt for Ghibli aesthetic
+    full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"
     
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        with open(path, 'wb') as f:
-            f.write(response.content)
+        client = _get_imagen_client()
+        response = client.models.generate_images(
+            model='imagen-4.0-generate-001',
+            prompt=full_prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9",
+            )
+        )
+        
+        if response.generated_images:
+            response.generated_images[0].image.save(path)
+            print(f"✅ Scene {i+1} painted successfully ({os.path.getsize(path)} bytes)")
+        else:
+            raise RuntimeError(f"Imagen returned no images for scene {i+1}")
+        
         return path
     except Exception as e:
         print(f"❌ Image generation error for scene {i+1}: {str(e)}")
@@ -41,30 +49,33 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
-    Generates images using Pollinations.ai in parallel.
+    Generates images using Google Imagen 4.0 sequentially.
+    Sequential to respect API rate limits on the Pro subscription.
     """
     session_id = str(int(time.time()))
+    image_paths = []
     
-    # Process up to 5 scenes in parallel to stay within reasonable quota limits
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        worker = partial(_generate_single_image, session_id=session_id)
-        # We need to maintain order, so we use executor.map or just a list of futures
-        image_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
+    for i, prompt in enumerate(prompts):
+        path = _generate_single_image(prompt, i, session_id)
+        image_paths.append(path)
+        # Small delay between requests to respect rate limits
+        if i < len(prompts) - 1:
+            time.sleep(1)
     
     return image_paths
 
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates cinematic video clips using Imagen 3.0 (CREDIT-SAFE) + Ken Burns movement.
-    This uses the same engine as Nano Banana 2 but is covered by GenAI Trial Credits.
+    Generates cinematic video clips using Google Imagen 4.0 + Ken Burns movement.
+    Uses the Google AI Pro subscription via API key.
     """
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
     session_id = str(int(time.time()))
     
-    print(f"🎨 Generating {len(prompts)} parallel {style_dna['name']} masterpieces (Credit-Safe Mode)...")
+    print(f"🎨 Generating {len(prompts)} {style_dna['name']} masterpieces (Imagen 4.0)...")
     
-    # 1. Generate high-quality static images (Imagen 3.0)
+    # 1. Generate high-quality static images (Imagen 4.0)
     image_paths = generate_images(prompts)
     
     video_paths = []
@@ -296,6 +307,8 @@ def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str 
     dest_path = os.path.join(archive_dir, filename)
     
     try:
+        # Ensure parent directory exists (e.g. for scenes/filename.png)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         shutil.copy2(local_path, dest_path)
         print(f"✅ Asset archived locally: {filename}")
         # Return the local URL path served by FastAPI

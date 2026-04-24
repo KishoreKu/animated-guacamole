@@ -7,7 +7,9 @@ from backend.agents.production_agent import ProductionAgent
 def create_orchestrator():
     # Initialize agents
     from backend.agents.concept_agent import ConceptAgent
+    from backend.agents.script_agent import ScriptAgent
     concept_agent = ConceptAgent()
+    script_agent = ScriptAgent()
     visual_agent = VisualAgent()
     metadata_agent = MetadataAgent()
     production_agent = ProductionAgent()
@@ -17,20 +19,22 @@ def create_orchestrator():
 
     # Add nodes
     workflow.add_node("concept", concept_agent.execute)
+    workflow.add_node("script", script_agent.execute)
     workflow.add_node("visuals", visual_agent.execute)
     workflow.add_node("metadata", metadata_agent.execute)
-    workflow.add_node("image_gen", production_agent.generate_images_node)
+    workflow.add_node("production", production_agent.generate_images_node)
     workflow.add_node("finalize_video", production_agent.finalize_video_node)
 
     # Set entry point
     workflow.set_entry_point("concept")
 
-    # Sequential Flow: Concept -> Visuals -> Image Gen -> Metadata -> END
+    # Sequential Flow: Concept -> Script -> Visuals -> Metadata -> Production -> END
     # This ensures the UI stays connected while the heavy image generation runs.
-    workflow.add_edge("concept", "visuals")
-    workflow.add_edge("visuals", "image_gen")
-    workflow.add_edge("image_gen", "metadata")
-    workflow.add_edge("metadata", END)
+    workflow.add_edge("concept", "script")
+    workflow.add_edge("script", "visuals")
+    workflow.add_edge("visuals", "metadata")
+    workflow.add_edge("metadata", "production")
+    workflow.add_edge("production", END)
     
     # The finalize_video node remains as a manual trigger after approval
     workflow.add_edge("finalize_video", END)

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class BaseAgent:
-    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "gemini-1.5-pro"):
+    def __init__(self, name: str, persona: str, tools: List[Any] = None, model_name: str = "gemini-2.0-flash"):
         self.name = name
         self.persona = persona
         # Configure for Google Gemini (Free Tier Compatible)

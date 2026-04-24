@@ -53,6 +53,7 @@ class ProductionAgent(BaseAgent):
                 asset_urls.append(url)
 
             return {
+                "production": log_msg,
                 "local_image_paths": assets,
                 "image_urls": asset_urls,
                 "status": status,
