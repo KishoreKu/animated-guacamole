@@ -4,6 +4,8 @@ import requests
 import json
 import re
 from typing import List
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
 
 
@@ -74,45 +76,107 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
+def _generate_single_video(prompt: str, i: int, session_id: str) -> str:
+    """Generates a single video clip using Google Veo 2.0 with retry."""
+    from google.genai import types
+    
+    print(f"🎬 Directing scene {i+1} with Veo AI...")
+    path = f"scene_{session_id}_{i}.mp4"
+    
+    # Enhance prompt for cinematic Ghibli aesthetic
+    full_prompt = f"Studio Ghibli anime style, soft watercolor aesthetic, gentle cinematic camera movement, {prompt}"
+    
+    max_retries = 5
+    base_delay = 5.0
+    
+    for attempt in range(max_retries):
+        try:
+            client = _get_imagen_client()
+            
+            operation = client.models.generate_videos(
+                model='veo-2.0-generate-001',
+                prompt=full_prompt,
+                config=types.GenerateVideosConfig(
+                    aspect_ratio="16:9",
+                    number_of_videos=1,
+                )
+            )
+            
+            print(f"   ⏳ Scene {i+1} rendering (operation: {operation.name})...")
+            
+            # Poll for completion (max 3 minutes per clip)
+            for tick in range(36):
+                if operation.done:
+                    break
+                time.sleep(5)
+                operation = client.operations.get(operation)
+            
+            if not operation.done:
+                raise TimeoutError(f"Veo timed out for scene {i+1} after 3 minutes")
+            
+            if operation.response and operation.response.generated_videos:
+                video = operation.response.generated_videos[0]
+                video_uri = video.video.uri
+                
+                # Download the video from Google's API (requires API key auth)
+                print(f"   📥 Downloading scene {i+1}...")
+                api_key = os.getenv("GOOGLE_API_KEY")
+                separator = "&" if "?" in video_uri else "?"
+                auth_url = f"{video_uri}{separator}key={api_key}"
+                dl_response = requests.get(auth_url, timeout=120)
+                dl_response.raise_for_status()
+                
+                with open(path, 'wb') as f:
+                    f.write(dl_response.content)
+                
+                size_mb = os.path.getsize(path) / (1024 * 1024)
+                print(f"   ✅ Scene {i+1} rendered! ({size_mb:.1f} MB)")
+                return path
+            else:
+                raise RuntimeError(f"Veo returned no videos for scene {i+1}")
+                
+        except Exception as e:
+            error_str = str(e)
+            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                print(f"   ⏳ Rate limited on scene {i+1} (attempt {attempt+1}/{max_retries}). Waiting {delay:.0f}s...")
+                time.sleep(delay)
+            elif attempt < max_retries - 1 and "Timeout" in error_str:
+                print(f"   ⏳ Timeout on scene {i+1}, retrying...")
+                time.sleep(5)
+            else:
+                print(f"   ❌ Veo error for scene {i+1}: {error_str}")
+                raise e
+
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates cinematic video clips using Google Imagen 4.0 + Ken Burns movement.
-    Uses the Google AI Pro subscription via API key.
+    Generates cinematic video clips using Google Veo 2.0 AI.
+    Real AI video generation with actual motion, not just Ken Burns.
+    Falls back to Imagen 4.0 + static frames if Veo fails.
     """
     from backend.tools.style_manager import get_style_data
     style_dna = get_style_data(style)
     session_id = str(int(time.time()))
     
-    print(f"🎨 Generating {len(prompts)} {style_dna['name']} masterpieces (Imagen 4.0)...")
-    
-    # 1. Generate high-quality static images (Imagen 4.0)
-    image_paths = generate_images(prompts)
+    print(f"🎬 Directing {len(prompts)} {style_dna['name']} scenes with Veo AI...")
     
     video_paths = []
-    # 2. Transform static images into 5-second cinematic clips
-    for i, img_path in enumerate(image_paths):
+    for i, prompt in enumerate(prompts):
         try:
-            from moviepy.editor import ImageClip
-            from backend.tools.production_tools import make_kenburns
-            
-            print(f"🎞️ Animating scene {i+1} with cinematic panning...")
-            
-            # Create a 5-second clip from the image
-            clip = ImageClip(img_path).set_duration(5.0)
-            
-            # Apply the professional Ken Burns effect (zoom/pan)
-            animated_clip = make_kenburns(clip, zoom_factor=0.12)
-            
-            output_path = f"scene_{session_id}_{i}.mp4"
-            # Write the clip to file (fast, local process)
-            animated_clip.write_videofile(output_path, fps=24, codec="libx264", audio=False, logger=None)
-            video_paths.append(output_path)
-            
+            path = _generate_single_video(prompt, i, session_id)
+            video_paths.append(path)
+            # Delay between video requests to respect rate limits
+            if i < len(prompts) - 1:
+                time.sleep(3)
         except Exception as e:
-            print(f"❌ Animation error for scene {i+1}: {e}")
-            # Fallback to simple image-video if moviepy fails
-            video_paths.append(img_path)
-            
+            print(f"⚠️ Veo failed for scene {i+1}, falling back to Imagen 4.0 static...")
+            # Fallback: generate a still image instead
+            try:
+                img_path = _generate_single_image(prompt, i, session_id)
+                video_paths.append(img_path)
+            except Exception as img_err:
+                print(f"❌ Fallback also failed for scene {i+1}: {img_err}")
+    
     return video_paths
 
 def _generate_single_audio(scene: str, i: int, session_id: str, style: str = "ghibli") -> str:
