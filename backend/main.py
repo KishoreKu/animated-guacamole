@@ -194,14 +194,25 @@ async def generate(request: Request):
                 # --- PERSISTENCE ---
                 # UNIFIED PERSISTENCE: Use image_urls as the master key for the gallery
                 current_images = accumulated_state.get("image_urls", [])
-                if accumulated_state.get("video_url") or current_images:
+                current_videos = accumulated_state.get("video_urls", [])
+                
+                # Use the first image or first video frame as a thumbnail
+                thumbnail_url = ""
+                if current_images:
+                    thumbnail_url = current_images[0]
+                elif current_videos:
+                    thumbnail_url = current_videos[0]
+
+                if accumulated_state.get("video_url") or current_images or current_videos:
                     save_generation({
                         "topic": accumulated_state.get("topic"),
                         "concept": accumulated_state.get("concept", ""),
                         "video_url": accumulated_state.get("video_url", ""),
                         "image_urls": current_images,
+                        "video_urls": current_videos,
                         "metadata": {
                             "title": accumulated_state.get("metadata", ""),
+                            "thumbnail": thumbnail_url,
                             "script": accumulated_state.get("script", ""),
                             "visuals": accumulated_state.get("visuals", ""),
                             "bgm_prompt": accumulated_state.get("bgm_prompt", "") or accumulated_state.get("music_mood", "peaceful_watercolor"),

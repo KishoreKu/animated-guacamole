@@ -24,17 +24,19 @@ def create_orchestrator():
     workflow.add_node("visuals", visual_agent.execute)
     workflow.add_node("metadata", metadata_agent.execute)
     workflow.add_node("production", production_agent.generate_images_node)
+    workflow.add_node("audio", production_agent.generate_audio_node)
     workflow.add_node("finalize_video", production_agent.finalize_video_node)
 
     # Set entry point
     workflow.set_entry_point("concept")
 
-    # Sequential Flow: Concept -> Script -> Visuals -> Metadata -> Production -> Finalize -> END
+    # Sequential Flow: Concept -> Script -> Visuals -> Metadata -> Production -> Audio -> Finalize -> END
     workflow.add_edge("concept", "script")
     workflow.add_edge("script", "visuals")
     workflow.add_edge("visuals", "metadata")
     workflow.add_edge("metadata", "production")
-    workflow.add_edge("production", "finalize_video")
+    workflow.add_edge("production", "audio")
+    workflow.add_edge("audio", "finalize_video")
     workflow.add_edge("finalize_video", END)
 
     return workflow.compile()
