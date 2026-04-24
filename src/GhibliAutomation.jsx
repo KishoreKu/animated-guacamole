@@ -730,6 +730,9 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
   const displayScript = result.script || meta.script || "◈ Creative script data not available for this archived generation.";
   const displayVisuals = result.visuals || meta.visuals || "";
   const displayBgmPrompt = result.bgm_prompt || meta.bgm_prompt || (result.metadata?.bgm_prompt) || "";
+  
+  // Use either video_urls or image_urls, preferring videos if we have them
+  const currentMediaUrls = result.video_urls?.length > 0 ? result.video_urls : result.image_urls;
 
   const visualPromptsList = (typeof displayVisuals === 'string') 
     ? displayVisuals.split('\n').filter(line => line.trim() && (line.trim().charAt(0) >= '0' && line.trim().charAt(0) <= '9' || line.trim().startsWith('-')))
@@ -852,10 +855,16 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
             )}
             
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
-              {result.image_urls && result.image_urls.length > 0 ? (
-                result.image_urls.map((url, i) => (
+              {currentMediaUrls && currentMediaUrls.length > 0 ? (
+                currentMediaUrls.map((url, i) => (
                   <div key={i} style={{ position: "relative", background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 12, border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column" }}>
-                    <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
+                    {url.toLowerCase().endsWith(".mp4") ? (
+                      <video autoPlay loop muted playsInline style={{ width: "100%", borderRadius: 8, marginBottom: 12 }}>
+                        <source src={url} type="video/mp4" />
+                      </video>
+                    ) : (
+                      <img src={url} alt={`Scene ${i+1}`} style={{ width: "100%", borderRadius: 8, marginBottom: 12 }} />
+                    )}
                     {(displayBgmPrompt) && (
                       <div style={{ padding: "8px 12px", background: "rgba(74, 184, 255, 0.1)", border: "1px solid rgba(74, 184, 255, 0.3)", borderRadius: 10, marginBottom: 12, position: "relative" }}>
                         <div style={{ fontSize: 10, color: "rgba(74, 184, 255, 0.8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>BGM Atmospheric Prompt</div>

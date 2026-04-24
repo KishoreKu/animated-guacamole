@@ -35,11 +35,13 @@ class ProductionAgent(BaseAgent):
                 assets = await asyncio.to_thread(generate_video_clips, prompts, style=style)
                 log_msg = f"🎬 {len(assets)} cinematic {style} clips rendered. Please approve in the dashboard."
                 status = "awaiting_approval"
+                key_name = "video_urls"
             else:
                 # STATIC PAINTING MODE (Free & Fast)
                 assets = await asyncio.to_thread(generate_images, prompts)
                 log_msg = f"🎨 {len(assets)} high-res {style} paintings completed."
                 status = "completed"
+                key_name = "image_urls"
 
             # UPLOAD ASSETS
             asset_urls = []
@@ -55,7 +57,8 @@ class ProductionAgent(BaseAgent):
             return {
                 "production": log_msg,
                 "local_image_paths": assets,
-                "image_urls": asset_urls,
+                "image_urls": asset_urls if not generate_video else [],
+                "video_urls": asset_urls if generate_video else [],
                 "status": status,
                 "logs": state["logs"] + [log_msg]
             }

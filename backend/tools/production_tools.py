@@ -455,7 +455,7 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
 def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str = None):
     """Uploads assets to Supabase Storage for permanent, publicly accessible URLs."""
     
-    SUPABASE_BUCKET = "ghibli-assets"
+    SUPABASE_BUCKET = bucket_name # Respect the passed bucket name
     filename = destination_blob_name if destination_blob_name else os.path.basename(local_path)
     supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
     supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -477,6 +477,12 @@ def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str 
     try:
         from backend.database import supabase as sb_client
         if sb_client:
+            # Fallback if the requested bucket doesn't exist
+            try:
+                sb_client.storage.get_bucket(SUPABASE_BUCKET)
+            except:
+                SUPABASE_BUCKET = "ghibli-assets"
+
             sb_client.storage.from_(SUPABASE_BUCKET).upload(
                 path=filename,
                 file=file_data,
