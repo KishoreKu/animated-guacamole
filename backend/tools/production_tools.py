@@ -136,7 +136,7 @@ def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
     try:
         # Using Kling Standard for better balance of speed and motion
         handler = fal_client.submit(
-            "fal-ai/kling-video/v1/standard/text2video",
+            "fal-ai/kling-video/v3/standard/text-to-video",
             arguments={
                 "prompt": full_prompt,
                 "duration": "5",
