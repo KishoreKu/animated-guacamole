@@ -33,8 +33,8 @@ class ProductionAgent(BaseAgent):
             if generate_video:
                 # CINEMATIC VIDEO MODE
                 assets = await asyncio.to_thread(generate_video_clips, prompts, style=style)
-                log_msg = f"🎬 {len(assets)} cinematic {style} clips rendered. Please approve in the dashboard."
-                status = "awaiting_approval"
+                log_msg = f"🎬 {len(assets)} cinematic {style} clips rendered. Moving to final assembly..."
+                status = "processing"
                 key_name = "video_urls"
             else:
                 # STATIC PAINTING MODE (Free & Fast)

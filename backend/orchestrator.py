@@ -29,15 +29,12 @@ def create_orchestrator():
     # Set entry point
     workflow.set_entry_point("concept")
 
-    # Sequential Flow: Concept -> Script -> Visuals -> Metadata -> Production -> END
-    # This ensures the UI stays connected while the heavy image generation runs.
+    # Sequential Flow: Concept -> Script -> Visuals -> Metadata -> Production -> Finalize -> END
     workflow.add_edge("concept", "script")
     workflow.add_edge("script", "visuals")
     workflow.add_edge("visuals", "metadata")
     workflow.add_edge("metadata", "production")
-    workflow.add_edge("production", END)
-    
-    # The finalize_video node remains as a manual trigger after approval
+    workflow.add_edge("production", "finalize_video")
     workflow.add_edge("finalize_video", END)
 
     return workflow.compile()

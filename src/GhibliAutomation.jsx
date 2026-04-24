@@ -302,7 +302,9 @@ export default function GhibliAutomation() {
          throw new Error("Production Agent failed to render the video. Check the logs above for API issues.");
       }
       
-      const isComplete = !generateVideo || Boolean(accumulatedState.video_url);
+      const isComplete = !generateVideo || 
+                         Boolean(accumulatedState.video_url) || 
+                         (accumulatedState.video_urls && accumulatedState.video_urls.length > 0);
 
       if (isComplete) {
          setFinalResult({ ...accumulatedState });
