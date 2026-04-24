@@ -1,13 +1,14 @@
 from langgraph.graph import StateGraph, END
 from backend.state import GraphState
-from backend.agents.visual_agent import VisualAgent
-from backend.agents.metadata_agent import MetadataAgent
-from backend.agents.production_agent import ProductionAgent
 
 def create_orchestrator():
-    # Initialize agents
+    # Initialize agents (Lazy import to prevent startup crashes)
     from backend.agents.concept_agent import ConceptAgent
     from backend.agents.script_agent import ScriptAgent
+    from backend.agents.visual_agent import VisualAgent
+    from backend.agents.metadata_agent import MetadataAgent
+    from backend.agents.production_agent import ProductionAgent
+    
     concept_agent = ConceptAgent()
     script_agent = ScriptAgent()
     visual_agent = VisualAgent()
