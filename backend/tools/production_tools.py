@@ -388,26 +388,32 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     # Use asset_paths as the master list so we don't skip scenes if audio is missing
     for i, asset_p in enumerate(asset_paths):
         audio_p = audio_paths[i] if i < len(audio_paths) else None
+        audio_clip = None
+        duration = 5.0 # Default duration
+        
+        # 1. Determine Audio and Duration
+        if audio_p and os.path.exists(audio_p):
+            audio_clip = AudioFileClip(audio_p)
+            duration = audio_clip.duration
+            
+        # 2. Process Asset
         if asset_p.endswith(".mp4"):
             video_clip = VideoFileClip(asset_p)
-            # Use native audio if present
-            if video_clip.audio:
+            # If video has its own audio and we don't have a separate narration, use video duration
+            if video_clip.audio and not audio_clip:
                 audio_clip = video_clip.audio
                 duration = video_clip.duration
-            elif audio_p and os.path.exists(audio_p):
-                audio_clip = AudioFileClip(audio_p)
-                duration = audio_clip.duration
-            else:
-                audio_clip = None
-                duration = 5.0
             
+            # Match durations
             if video_clip.duration < duration:
                 video_clip = video_clip.loop(duration=duration)
             else:
                 video_clip = video_clip.set_duration(duration)
+            
             if audio_clip:
                 video_clip = video_clip.set_audio(audio_clip)
         else:
+            # Handle Static Images
             img_clip = ImageClip(asset_p).set_duration(duration)
             img_clip = make_kenburns(img_clip, zoom_factor=0.12)
             if audio_clip:
