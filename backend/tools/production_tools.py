@@ -17,12 +17,53 @@ def _get_imagen_client():
         raise ValueError("GOOGLE_API_KEY not found in environment variables.")
     return genai.Client(api_key=api_key)
 
-def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
-    """Helper for image generation using Google Imagen 4.0 (Pro subscription) with retry."""
-    from google.genai import types
-    
-    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")
+def _generate_single_image_fal(prompt: str, i: int, session_id: str) -> str:
+    """Helper for image generation using fal.ai (Flux.1 Schnell) - High speed/quality."""
+    import fal_client
+
+    print(f"🎨 Painting scene {i+1} with fal.ai (Flux.1)...")
     path = f"scene_{session_id}_{i}.png"
+
+    # Enhance prompt for Ghibli aesthetic
+    full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"
+
+    try:
+        handler = fal_client.submit(
+            "fal-ai/flux/schnell",
+            arguments={
+                "prompt": full_prompt,
+                "image_size": "landscape_16_9",
+                "num_inference_steps": 4,
+                "enable_safety_checker": True
+            }
+        )
+        result = handler.get()
+        if result and result.get("images"):
+            image_url = result["images"][0]["url"]
+            print(f"   📥 Downloading scene {i+1} painting from fal.ai...")
+            img_response = requests.get(image_url, timeout=60)
+            img_response.raise_for_status()
+            with open(path, "wb") as f:
+                f.write(img_response.content)
+            print(f"✅ Scene {i+1} painted successfully ({os.path.getsize(path)} bytes)")
+            return path
+        else:
+            raise RuntimeError("fal.ai returned no images")
+    except Exception as e:
+        print(f"❌ fal.ai error for scene {i+1}: {e}")
+        raise e
+
+def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
+    """Helper for image generation using Google Imagen 4.0 or fal.ai fallback."""
+    # PREFER FAL.AI IF KEY IS PRESENT (Solves Google billing issues)
+    if os.getenv("FAL_KEY"):
+        try:
+            return _generate_single_image_fal(prompt, i, session_id)
+        except Exception:
+            print("⚠️ fal.ai failed, attempting Google Imagen fallback...")
+
+    from google.genai import types
+    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")    path = f"scene_{session_id}_{i}.png"
     
     # Enhance prompt for Ghibli aesthetic
     full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"

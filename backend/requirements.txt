@@ -1,3 +1,5 @@
+fal-client
+langchain-openai
 fastapi
 uvicorn
 langgraph

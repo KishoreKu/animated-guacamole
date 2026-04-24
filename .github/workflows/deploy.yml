@@ -48,6 +48,8 @@ jobs:
             --min-instances=1
           secrets: |
             GOOGLE_API_KEY=GOOGLE_API_KEY:latest
+            OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest
+            FAL_KEY=FAL_KEY:latest
             SUPABASE_URL=SUPABASE_URL:latest
             SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest
             CRON_SECRET_TOKEN=CRON_SECRET_TOKEN:latest
