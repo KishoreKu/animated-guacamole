@@ -16,7 +16,7 @@ def _get_imagen_client():
     return genai.Client(api_key=api_key)
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
-    """Helper for image generation using Google Imagen 4.0 (Pro subscription)."""
+    """Helper for image generation using Google Imagen 4.0 (Pro subscription) with retry."""
     from google.genai import types
     
     print(f"🎨 Painting scene {i+1} with Imagen 4.0...")
@@ -25,32 +25,42 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
     # Enhance prompt for Ghibli aesthetic
     full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"
     
-    try:
-        client = _get_imagen_client()
-        response = client.models.generate_images(
-            model='imagen-4.0-generate-001',
-            prompt=full_prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="16:9",
+    max_retries = 5
+    base_delay = 3.0
+    
+    for attempt in range(max_retries):
+        try:
+            client = _get_imagen_client()
+            response = client.models.generate_images(
+                model='imagen-4.0-generate-001',
+                prompt=full_prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio="16:9",
+                )
             )
-        )
-        
-        if response.generated_images:
-            response.generated_images[0].image.save(path)
-            print(f"✅ Scene {i+1} painted successfully ({os.path.getsize(path)} bytes)")
-        else:
-            raise RuntimeError(f"Imagen returned no images for scene {i+1}")
-        
-        return path
-    except Exception as e:
-        print(f"❌ Image generation error for scene {i+1}: {str(e)}")
-        raise e
+            
+            if response.generated_images:
+                response.generated_images[0].image.save(path)
+                print(f"✅ Scene {i+1} painted successfully ({os.path.getsize(path)} bytes)")
+            else:
+                raise RuntimeError(f"Imagen returned no images for scene {i+1}")
+            
+            return path
+        except Exception as e:
+            error_str = str(e)
+            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                print(f"⏳ Imagen rate limited on scene {i+1} (attempt {attempt+1}/{max_retries}). Waiting {delay:.0f}s...")
+                time.sleep(delay)
+            else:
+                print(f"❌ Image generation error for scene {i+1}: {error_str}")
+                raise e
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
     Generates images using Google Imagen 4.0 sequentially.
-    Sequential to respect API rate limits on the Pro subscription.
+    Sequential with delays to respect API rate limits.
     """
     session_id = str(int(time.time()))
     image_paths = []
@@ -58,9 +68,9 @@ def generate_images(prompts: List[str]) -> List[str]:
     for i, prompt in enumerate(prompts):
         path = _generate_single_image(prompt, i, session_id)
         image_paths.append(path)
-        # Small delay between requests to respect rate limits
+        # 2s delay between requests to proactively avoid rate limits
         if i < len(prompts) - 1:
-            time.sleep(1)
+            time.sleep(2)
     
     return image_paths
 
