@@ -35,7 +35,19 @@ if not os.path.exists(archive_dir):
     os.makedirs(archive_dir, exist_ok=True)
 app.mount("/archive", StaticFiles(directory=archive_dir), name="archive")
 
-orchestrator = create_orchestrator()
+# Lazy load orchestrator to prevent startup crashes if agents fail to initialize
+_orchestrator = None
+
+def get_orchestrator():
+    global _orchestrator
+    if _orchestrator is None:
+        try:
+            from backend.orchestrator import create_orchestrator
+            _orchestrator = create_orchestrator()
+        except Exception as e:
+            print(f"FAILED TO CREATE ORCHESTRATOR: {e}")
+            raise e
+    return _orchestrator
 
 # --- AUTH HELPER ---
 
@@ -72,8 +84,12 @@ async def suggest_themes():
     """
     try:
         from backend.agents.base import BaseAgent
+        # We can still use BaseAgent directly here, but let's make sure it doesn't crash
         agent = BaseAgent("theme_architect", "You are a master at brainstorming poetic Studio Ghibli world concepts.")
         
+        if not agent.llm:
+            raise ValueError("LLM not initialized. Check your API keys.")
+            
         prompt = (
             "Brainstorm 6 unique, poetic, and atmosphere-heavy Studio Ghibli world titles. "
             "Examples: 'The Clockmaker's Hidden Attic', 'A Village of Whispering Lanterns'. "
@@ -168,8 +184,9 @@ async def generate(request: Request):
         async def run_orchestrator():
             """Runs the orchestrator and puts its updates into the queue."""
             try:
+                orch = get_orchestrator()
                 accumulated_state = initial_state.copy()
-                async for output in orchestrator.astream(initial_state):
+                async for output in orch.astream(initial_state):
                     for node_name, state_update in output.items():
                         accumulated_state.update(state_update)
                     await stream_queue.put(f"data: {json.dumps(output)}\n\n")

@@ -48,19 +48,27 @@ class BaseAgent:
         api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
         try:
-            raw_llm = ChatOpenAI(
-                model=model_name,
-                openai_api_key=api_key,
-                openai_api_base="https://openrouter.ai/api/v1",
-                default_headers={
-                    "HTTP-Referer": "https://github.com/KishoreKu/ghibili", # Optional, for OpenRouter rankings
-                    "X-Title": "Ghibli Studio Automation",
-                },
-                temperature=0.7,
-            )
-            self.llm = RetryLLMWrapper(raw_llm)
+            if not api_key:
+                print(f"⚠️ Warning: No API key found for agent {name}. Model calls will fail.")
+                self.llm = None
+            else:
+                raw_llm = ChatOpenAI(
+                    model=model_name,
+                    openai_api_key=api_key,
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    default_headers={
+                        "HTTP-Referer": "https://github.com/KishoreKu/ghibili", # Optional, for OpenRouter rankings
+                        "X-Title": "Ghibli Studio Automation",
+                    },
+                    temperature=0.7,
+                    max_retries=3,
+                )
+                self.llm = RetryLLMWrapper(raw_llm)
         except Exception as e:
-            print(f"Error initializing OpenRouter agent: {e}")
+            print(f"❌ Error initializing OpenRouter agent {name}: {e}")
+            self.llm = None
+        except BaseException as e:
+            print(f"❌ Critical error during agent {name} init: {e}")
             self.llm = None
 
         if tools and self.llm:
