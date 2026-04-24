@@ -118,8 +118,50 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
+def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
+    """Helper for cinematic video generation using fal.ai (Luma Dream Machine)."""
+    import fal_client
+    
+    print(f"🎬 Directing scene {i+1} with fal.ai (Luma)...")
+    path = f"scene_{session_id}_{i}.mp4"
+    
+    # Enhance prompt for cinematic Ghibli aesthetic
+    full_prompt = f"Studio Ghibli anime style, soft watercolor aesthetic, gentle cinematic movement, masterpiece quality, {prompt}"
+    
+    try:
+        handler = fal_client.submit(
+            "fal-ai/luma-dream-machine",
+            arguments={
+                "prompt": full_prompt,
+                "aspect_ratio": "16:9",
+                "expand_prompt": True
+            }
+        )
+        result = handler.get()
+        if result and result.get("video"):
+            video_url = result["video"]["url"]
+            print(f"   📥 Downloading scene {i+1} video from fal.ai...")
+            v_response = requests.get(video_url, timeout=180)
+            v_response.raise_for_status()
+            with open(path, "wb") as f:
+                f.write(v_response.content)
+            print(f"✅ Scene {i+1} video rendered! ({os.path.getsize(path)} bytes)")
+            return path
+        else:
+            raise RuntimeError("fal.ai returned no video")
+    except Exception as e:
+        print(f"❌ fal.ai video error for scene {i+1}: {e}")
+        raise e
+
 def _generate_single_video(prompt: str, i: int, session_id: str) -> str:
-    """Generates a single video clip using Google Veo 2.0 with retry."""
+    """Generates a single video clip using fal.ai or Google Veo fallback."""
+    # PREFER FAL.AI IF KEY IS PRESENT
+    if os.getenv("FAL_KEY"):
+        try:
+            return _generate_single_video_fal(prompt, i, session_id)
+        except Exception:
+            print("⚠️ fal.ai video failed, attempting Google Veo fallback...")
+
     from google.genai import types
     
     print(f"🎬 Directing scene {i+1} with Veo AI...")
