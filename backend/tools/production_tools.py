@@ -119,28 +119,34 @@ def generate_images(prompts: List[str]) -> List[str]:
     return image_paths
 
 def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
-    """Helper for cinematic video generation using fal.ai (Luma Dream Machine)."""
+    """Helper for cinematic video generation using fal.ai (Kling AI) - Superior motion."""
     import fal_client
     
-    print(f"🎬 Directing scene {i+1} with fal.ai (Luma)...")
+    print(f"🎬 Directing scene {i+1} with Kling AI (High Motion)...")
     path = f"scene_{session_id}_{i}.mp4"
     
-    # Enhance prompt for cinematic Ghibli aesthetic
-    full_prompt = f"Studio Ghibli anime style, soft watercolor aesthetic, gentle cinematic movement, masterpiece quality, {prompt}"
+    # ENHANCED MOTION PROMPT: Emphasizing movement and storytelling
+    full_prompt = (
+        f"Studio Ghibli anime style, soft watercolor aesthetic, masterpiece quality. "
+        f"CHARACTER MOTION: The characters are actively moving, walking, or interacting. "
+        f"CINEMATOGRAPHY: Dynamic camera movement, slow zoom or pan. "
+        f"SCENE: {prompt}"
+    )
     
     try:
+        # Using Kling Standard for better balance of speed and motion
         handler = fal_client.submit(
-            "fal-ai/luma-dream-machine",
+            "fal-ai/kling-video/v1/standard/text2video",
             arguments={
                 "prompt": full_prompt,
-                "aspect_ratio": "16:9",
-                "expand_prompt": True
+                "duration": "5",
+                "aspect_ratio": "16:9"
             }
         )
         result = handler.get()
         if result and result.get("video"):
             video_url = result["video"]["url"]
-            print(f"   📥 Downloading scene {i+1} video from fal.ai...")
+            print(f"   📥 Downloading scene {i+1} video from Kling...")
             v_response = requests.get(video_url, timeout=180)
             v_response.raise_for_status()
             with open(path, "wb") as f:
@@ -148,118 +154,33 @@ def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
             print(f"✅ Scene {i+1} video rendered! ({os.path.getsize(path)} bytes)")
             return path
         else:
-            raise RuntimeError("fal.ai returned no video")
+            raise RuntimeError("Kling AI returned no video")
     except Exception as e:
-        print(f"❌ fal.ai video error for scene {i+1}: {e}")
+        print(f"❌ Kling AI video error for scene {i+1}: {e}")
         raise e
 
 def _generate_single_video(prompt: str, i: int, session_id: str) -> str:
-    """Generates a single video clip using fal.ai or Google Veo fallback."""
-    # PREFER FAL.AI IF KEY IS PRESENT
+    """Generates a single video clip using fal.ai. (Disabled Google fallback to prevent still images)"""
+    # FORCE FAL.AI FOR VIDEOS
     if os.getenv("FAL_KEY"):
-        try:
-            return _generate_single_video_fal(prompt, i, session_id)
-        except Exception:
-            print("⚠️ fal.ai video failed, attempting Google Veo fallback...")
-
-    from google.genai import types
+        return _generate_single_video_fal(prompt, i, session_id)
     
-    print(f"🎬 Directing scene {i+1} with Veo AI...")
-    path = f"scene_{session_id}_{i}.mp4"
-    
-    # Enhance prompt for cinematic Ghibli aesthetic
-    full_prompt = f"Studio Ghibli anime style, soft watercolor aesthetic, gentle cinematic camera movement, {prompt}"
-    
-    max_retries = 5
-    base_delay = 5.0
-    
-    for attempt in range(max_retries):
-        try:
-            client = _get_imagen_client()
-            
-            operation = client.models.generate_videos(
-                model='veo-2.0-generate-001',
-                prompt=full_prompt,
-                config=types.GenerateVideosConfig(
-                    aspect_ratio="16:9",
-                    number_of_videos=1,
-                )
-            )
-            
-            print(f"   ⏳ Scene {i+1} rendering (operation: {operation.name})...")
-            
-            # Poll for completion (max 3 minutes per clip)
-            for tick in range(36):
-                if operation.done:
-                    break
-                time.sleep(5)
-                operation = client.operations.get(operation)
-            
-            if not operation.done:
-                raise TimeoutError(f"Veo timed out for scene {i+1} after 3 minutes")
-            
-            if operation.response and operation.response.generated_videos:
-                video = operation.response.generated_videos[0]
-                video_uri = video.video.uri
-                
-                # Download the video from Google's API (requires API key auth)
-                print(f"   📥 Downloading scene {i+1}...")
-                api_key = os.getenv("GOOGLE_API_KEY")
-                separator = "&" if "?" in video_uri else "?"
-                auth_url = f"{video_uri}{separator}key={api_key}"
-                dl_response = requests.get(auth_url, timeout=120)
-                dl_response.raise_for_status()
-                
-                with open(path, 'wb') as f:
-                    f.write(dl_response.content)
-                
-                size_mb = os.path.getsize(path) / (1024 * 1024)
-                print(f"   ✅ Scene {i+1} rendered! ({size_mb:.1f} MB)")
-                return path
-            else:
-                raise RuntimeError(f"Veo returned no videos for scene {i+1}")
-                
-        except Exception as e:
-            error_str = str(e)
-            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt)
-                print(f"   ⏳ Rate limited on scene {i+1} (attempt {attempt+1}/{max_retries}). Waiting {delay:.0f}s...")
-                time.sleep(delay)
-            elif attempt < max_retries - 1 and "Timeout" in error_str:
-                print(f"   ⏳ Timeout on scene {i+1}, retrying...")
-                time.sleep(5)
-            else:
-                print(f"   ❌ Veo error for scene {i+1}: {error_str}")
-                raise e
+    raise ValueError("FAL_KEY is missing. Video generation requires fal.ai.")
 
 def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
     """
-    Generates cinematic video clips using Google Veo 2.0 AI.
-    Real AI video generation with actual motion, not just Ken Burns.
-    Falls back to Imagen 4.0 + static frames if Veo fails.
+    Generates cinematic video clips using fal.ai (Kling).
+    Strictly generates videos - no fallback to still images.
     """
-    from backend.tools.style_manager import get_style_data
-    style_dna = get_style_data(style)
     session_id = str(int(time.time()))
-    
-    print(f"🎬 Directing {len(prompts)} {style_dna['name']} scenes with Veo AI...")
-    
     video_paths = []
     for i, prompt in enumerate(prompts):
-        try:
-            path = _generate_single_video(prompt, i, session_id)
-            video_paths.append(path)
-            # Delay between video requests to respect rate limits
-            if i < len(prompts) - 1:
-                time.sleep(3)
-        except Exception as e:
-            print(f"⚠️ Veo failed for scene {i+1}, falling back to Imagen 4.0 static...")
-            # Fallback: generate a still image instead
-            try:
-                img_path = _generate_single_image(prompt, i, session_id)
-                video_paths.append(img_path)
-            except Exception as img_err:
-                print(f"❌ Fallback also failed for scene {i+1}: {img_err}")
+        # Removed the 'try/except' fallback to still images to ensure we only get videos
+        path = _generate_single_video(prompt, i, session_id)
+        video_paths.append(path)
+        # Small delay to be kind to the API
+        if i < len(prompts) - 1:
+            time.sleep(2)
     
     return video_paths
 
