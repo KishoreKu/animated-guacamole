@@ -63,7 +63,8 @@ def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
             print("⚠️ fal.ai failed, attempting Google Imagen fallback...")
 
     from google.genai import types
-    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")    path = f"scene_{session_id}_{i}.png"
+    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")
+    path = f"scene_{session_id}_{i}.png"
     
     # Enhance prompt for Ghibli aesthetic
     full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"
