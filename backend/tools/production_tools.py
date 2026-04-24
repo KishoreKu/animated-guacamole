@@ -305,24 +305,58 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     return output_filename
 
 def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str = None):
-    """Safety Mode: Saves to local archive instead of GCS to avoid billing errors."""
-    import shutil
+    """Uploads assets to Supabase Storage for permanent, publicly accessible URLs."""
     
-    # Define local archive path (matches backend/main.py static mount)
-    archive_dir = os.path.join(os.path.dirname(__file__), "..", "public", "archive")
-    if not os.path.exists(archive_dir):
-        os.makedirs(archive_dir, exist_ok=True)
-        
+    SUPABASE_BUCKET = "ghibli-assets"
     filename = destination_blob_name if destination_blob_name else os.path.basename(local_path)
-    dest_path = os.path.join(archive_dir, filename)
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     
+    # Determine content type
+    if local_path.endswith(".mp4"):
+        content_type = "video/mp4"
+    elif local_path.endswith(".png"):
+        content_type = "image/png"
+    elif local_path.endswith(".jpg") or local_path.endswith(".jpeg"):
+        content_type = "image/jpeg"
+    else:
+        content_type = "application/octet-stream"
+    
+    with open(local_path, "rb") as f:
+        file_data = f.read()
+    
+    # Try Supabase Python SDK first
     try:
-        # Ensure parent directory exists (e.g. for scenes/filename.png)
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        shutil.copy2(local_path, dest_path)
-        print(f"✅ Asset archived locally: {filename}")
-        # Return the local URL path served by FastAPI
-        return f"/archive/{filename}"
+        from backend.database import supabase as sb_client
+        if sb_client:
+            sb_client.storage.from_(SUPABASE_BUCKET).upload(
+                path=filename,
+                file=file_data,
+                file_options={"content-type": content_type, "upsert": "true"}
+            )
+            public_url = f"{supabase_url}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
+            print(f"✅ Uploaded to Supabase Storage: {filename} ({len(file_data) // 1024} KB)")
+            return public_url
+    except Exception as sdk_err:
+        print(f"⚠️ SDK upload failed ({sdk_err}), trying REST fallback...")
+    
+    # Fallback: direct REST API upload via requests
+    try:
+        upload_url = f"{supabase_url}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
+        headers = {
+            "Authorization": f"Bearer {supabase_key}",
+            "apikey": supabase_key,
+            "Content-Type": content_type,
+            "x-upsert": "true",
+        }
+        resp = requests.post(upload_url, headers=headers, data=file_data, timeout=60)
+        resp.raise_for_status()
+        
+        public_url = f"{supabase_url}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
+        print(f"✅ Uploaded via REST: {filename} ({len(file_data) // 1024} KB)")
+        return public_url
     except Exception as e:
-        print(f"⚠️ Local archival failed: {e}")
+        print(f"❌ All upload methods failed: {e}")
         return local_path
+
+
