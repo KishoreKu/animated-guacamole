@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "ghibli-studio-prod",
     "public": "dist",
     "ignore": [
       "firebase.json",
