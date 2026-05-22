@@ -45,7 +45,7 @@ class BaseAgent:
         self.persona = persona
 
         # Configure for OpenRouter (OpenAI-compatible)
-        api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("OPENROUTER_API_KEY")
 
         try:
             if not api_key:

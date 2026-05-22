@@ -52,7 +52,6 @@ jobs:
             --timeout=15m
             --min-instances=1
           secrets: |
-            GOOGLE_API_KEY=GOOGLE_API_KEY:latest
             OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest
             FAL_KEY=FAL_KEY:latest
             SUPABASE_URL=SUPABASE_URL:latest

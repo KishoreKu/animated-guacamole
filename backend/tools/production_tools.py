@@ -9,13 +9,7 @@ from functools import partial
 from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
 
 
-def _get_imagen_client():
-    """Returns a configured google-genai client using the GOOGLE_API_KEY."""
-    from google import genai
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY not found in environment variables.")
-    return genai.Client(api_key=api_key)
+
 
 def _generate_single_image_fal(prompt: str, i: int, session_id: str) -> str:
     """Helper for image generation using fal.ai (Flux.1 Schnell) - High speed/quality."""
@@ -54,56 +48,14 @@ def _generate_single_image_fal(prompt: str, i: int, session_id: str) -> str:
         raise e
 
 def _generate_single_image(prompt: str, i: int, session_id: str) -> str:
-    """Helper for image generation using Google Imagen 4.0 or fal.ai fallback."""
-    # PREFER FAL.AI IF KEY IS PRESENT (Solves Google billing issues)
+    """Helper for image generation using fal.ai."""
     if os.getenv("FAL_KEY"):
-        try:
-            return _generate_single_image_fal(prompt, i, session_id)
-        except Exception:
-            print("⚠️ fal.ai failed, attempting Google Imagen fallback...")
-
-    from google.genai import types
-    print(f"🎨 Painting scene {i+1} with Imagen 4.0...")
-    path = f"scene_{session_id}_{i}.png"
-    
-    # Enhance prompt for Ghibli aesthetic
-    full_prompt = f"Studio Ghibli style, soft watercolor aesthetic, cinematic composition, masterpiece quality, {prompt}"
-    
-    max_retries = 5
-    base_delay = 3.0
-    
-    for attempt in range(max_retries):
-        try:
-            client = _get_imagen_client()
-            response = client.models.generate_images(
-                model='imagen-4.0-generate-001',
-                prompt=full_prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio="16:9",
-                )
-            )
-            
-            if response.generated_images:
-                response.generated_images[0].image.save(path)
-                print(f"✅ Scene {i+1} painted successfully ({os.path.getsize(path)} bytes)")
-            else:
-                raise RuntimeError(f"Imagen returned no images for scene {i+1}")
-            
-            return path
-        except Exception as e:
-            error_str = str(e)
-            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt)
-                print(f"⏳ Imagen rate limited on scene {i+1} (attempt {attempt+1}/{max_retries}). Waiting {delay:.0f}s...")
-                time.sleep(delay)
-            else:
-                print(f"❌ Image generation error for scene {i+1}: {error_str}")
-                raise e
+        return _generate_single_image_fal(prompt, i, session_id)
+    raise ValueError("FAL_KEY is missing. Image generation requires fal.ai.")
 
 def generate_images(prompts: List[str]) -> List[str]:
     """
-    Generates images using Google Imagen 4.0 sequentially.
+    Generates images using fal.ai sequentially.
     Sequential with delays to respect API rate limits.
     """
     session_id = str(int(time.time()))

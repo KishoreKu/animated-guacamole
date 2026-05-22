@@ -117,7 +117,6 @@ export default function GhibliAutomation() {
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
   const [style, setStyle] = useState("ghibli");
-  const [generateVideo, setGenerateVideo] = useState(true);
   const [running, setRunning] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
@@ -257,7 +256,7 @@ export default function GhibliAutomation() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ topic, numScenes, generateVideo, style }),
+        body: JSON.stringify({ topic, numScenes, generateVideo: true, style }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -564,26 +563,6 @@ export default function GhibliAutomation() {
                     {[1, 2, 3, 4, 5].map(n => <option key={n} value={n} style={{ background: "#1a1a1a" }}>{n} Scenes</option>)}
                   </select>
                 </div>
-                
-                <div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-                    True AI Video
-                  </div>
-                  <button 
-                    onClick={() => setGenerateVideo(!generateVideo)}
-                    style={{
-                      width: "100%", padding: "12px 20px", borderRadius: 16,
-                      background: generateVideo ? "rgba(74,255,236,0.15)" : "rgba(255,255,255,0.05)",
-                      border: `1px solid ${generateVideo ? "rgba(74,255,236,0.4)" : "rgba(255,255,255,0.1)"}`,
-                      color: generateVideo ? "#4affec" : "rgba(255,255,255,0.4)",
-                      fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                      fontFamily: "'Inter', sans-serif", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8
-                    }}
-                  >
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: generateVideo ? "#4affec" : "rgba(255,255,255,0.2)" }} />
-                    {generateVideo ? "Veo Enabled" : "Static Only"}
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -833,7 +812,7 @@ function ResultPanel({ result, onReset, parseMetadata, isGalleryView, handleDown
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: "#4ab8ff", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>
-              🎞️ Cinematic Masterpiece (Veo Generated)
+              🎞️ Cinematic Masterpiece
             </div>
             <button 
               onClick={() => handleDownload(result.video_url, `ghibli_masterpiece.mp4`)}
