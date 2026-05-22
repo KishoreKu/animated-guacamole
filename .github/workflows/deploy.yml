@@ -4,12 +4,16 @@ on:
   push:
     branches: [ main, master ]
 
+permissions:
+  contents: 'read'
+  id-token: 'write'
+
 env:
-  PROJECT_ID: ghibli-studio-prod
+  PROJECT_ID: ghibli-prod-2026
   REGION: us-central1
   BACKEND_SERVICE_NAME: ghibli-backend
   FRONTEND_BUCKET: ghibli-frontend-prod
-  IMAGE_NAME: us-central1-docker.pkg.dev/ghibli-studio-prod/ghibli-repo/backend
+  IMAGE_NAME: us-central1-docker.pkg.dev/ghibli-prod-2026/ghibli-repo/backend
 
 jobs:
   deploy-backend:
@@ -21,7 +25,8 @@ jobs:
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          workload_identity_provider: 'projects/226609348101/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions-deployer@ghibli-prod-2026.iam.gserviceaccount.com'
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
@@ -69,7 +74,8 @@ jobs:
       - id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          workload_identity_provider: 'projects/226609348101/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions-deployer@ghibli-prod-2026.iam.gserviceaccount.com'
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
