@@ -152,7 +152,16 @@ export default function GhibliAutomation() {
           throw new Error("Missing Supabase configuration. Check your VITE_ environment variables.");
         }
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        
+        // Ignore lock contention errors (common in React StrictMode)
+        if (error) {
+          if (error.message.includes("stole it") || error.message.includes("lock:")) {
+            console.warn("Ignored Supabase lock error:", error.message);
+          } else {
+            throw error;
+          }
+        }
+        
         setUser(session?.user ?? null);
         setAuthInitialized(true);
       } catch (err) {
