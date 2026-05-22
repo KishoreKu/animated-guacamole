@@ -166,8 +166,14 @@ export default function GhibliAutomation() {
         setAuthInitialized(true);
       } catch (err) {
         console.error("Auth init error:", err);
-        setAuthError(err.message);
-        setAuthInitialized(true);
+        // Also ignore lock exceptions that get thrown directly
+        if (err?.message?.includes("stole it") || err?.message?.includes("lock:")) {
+          console.warn("Ignored thrown Supabase lock error:", err.message);
+          setAuthInitialized(true);
+        } else {
+          setAuthError(err.message);
+          setAuthInitialized(true);
+        }
       }
     };
     initAuth();
