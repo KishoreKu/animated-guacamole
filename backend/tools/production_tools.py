@@ -364,64 +364,39 @@ def stitch_video(asset_paths: List[str], audio_paths: List[str], output_filename
     return output_filename
 
 def upload_to_gcs(local_path: str, bucket_name: str, destination_blob_name: str = None):
-    """Uploads assets to Supabase Storage for permanent, publicly accessible URLs."""
-    
-    SUPABASE_BUCKET = bucket_name # Respect the passed bucket name
-    filename = destination_blob_name if destination_blob_name else os.path.basename(local_path)
-    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    
-    # Determine content type
-    if local_path.endswith(".mp4"):
-        content_type = "video/mp4"
-    elif local_path.endswith(".png"):
-        content_type = "image/png"
-    elif local_path.endswith(".jpg") or local_path.endswith(".jpeg"):
-        content_type = "image/jpeg"
-    else:
-        content_type = "application/octet-stream"
-    
-    with open(local_path, "rb") as f:
-        file_data = f.read()
-    
-    # Try Supabase Python SDK first
+    """Uploads assets to Google Cloud Storage for permanent, publicly accessible URLs."""
     try:
-        from backend.database import supabase as sb_client
-        if sb_client:
-            # Fallback if the requested bucket doesn't exist
-            try:
-                sb_client.storage.get_bucket(SUPABASE_BUCKET)
-            except:
-                SUPABASE_BUCKET = "ghibli-assets"
-
-            sb_client.storage.from_(SUPABASE_BUCKET).upload(
-                path=filename,
-                file=file_data,
-                file_options={"content-type": content_type, "upsert": "true"}
-            )
-            public_url = f"{supabase_url}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
-            print(f"✅ Uploaded to Supabase Storage: {filename} ({len(file_data) // 1024} KB)")
-            return public_url
-    except Exception as sdk_err:
-        print(f"⚠️ SDK upload failed ({sdk_err}), trying REST fallback...")
-    
-    # Fallback: direct REST API upload via requests
-    try:
-        upload_url = f"{supabase_url}/storage/v1/object/{SUPABASE_BUCKET}/{filename}"
-        headers = {
-            "Authorization": f"Bearer {supabase_key}",
-            "apikey": supabase_key,
-            "Content-Type": content_type,
-            "x-upsert": "true",
-        }
-        resp = requests.post(upload_url, headers=headers, data=file_data, timeout=60)
-        resp.raise_for_status()
+        from google.cloud import storage
+        import os
         
-        public_url = f"{supabase_url}/storage/v1/object/public/{SUPABASE_BUCKET}/{filename}"
-        print(f"✅ Uploaded via REST: {filename} ({len(file_data) // 1024} KB)")
+        filename = destination_blob_name if destination_blob_name else os.path.basename(local_path)
+        
+        # Determine content type
+        if local_path.endswith(".mp4"):
+            content_type = "video/mp4"
+        elif local_path.endswith(".png"):
+            content_type = "image/png"
+        elif local_path.endswith(".jpg") or local_path.endswith(".jpeg"):
+            content_type = "image/jpeg"
+        elif local_path.endswith(".mp3"):
+            content_type = "audio/mpeg"
+        else:
+            content_type = "application/octet-stream"
+            
+        # Initialize Google Cloud Storage client
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(filename)
+        
+        print(f"   📤 Uploading {filename} to gs://{bucket_name}...")
+        blob.upload_from_filename(local_path, content_type=content_type)
+        
+        # Construct public URL (assumes bucket is public)
+        public_url = f"https://storage.googleapis.com/{bucket_name}/{filename}"
+        print(f"✅ Uploaded to Google Cloud Storage: {public_url}")
         return public_url
     except Exception as e:
-        print(f"❌ All upload methods failed: {e}")
+        print(f"❌ Google Cloud Storage upload failed: {e}")
         return local_path
 
 
