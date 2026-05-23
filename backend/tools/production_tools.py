@@ -121,10 +121,13 @@ def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, vide
             
             status = status_data.get("status")
             if status == "completed":
-                # The video URL might be in 'url', 'content_url', or 'video_url' depending on OpenRouter's schema
-                video_url = status_data.get("url") or status_data.get("content_url") or status_data.get("video_url")
-                if "video" in status_data and isinstance(status_data["video"], dict):
-                    video_url = video_url or status_data["video"].get("url")
+                # OpenRouter returns the video URL in a list called 'unsigned_urls'
+                if "unsigned_urls" in status_data and len(status_data["unsigned_urls"]) > 0:
+                    video_url = status_data["unsigned_urls"][0]
+                else:
+                    video_url = status_data.get("url") or status_data.get("content_url") or status_data.get("video_url")
+                    if "video" in status_data and isinstance(status_data["video"], dict):
+                        video_url = video_url or status_data["video"].get("url")
                 break
             elif status in ["failed", "error"]:
                 raise RuntimeError(f"OpenRouter video generation failed: {status_data}")
@@ -154,16 +157,13 @@ def _generate_single_video(prompt: str, i: int, session_id: str, video_model: st
 
 def generate_video_clips(prompts: List[str], video_model: str = "alibaba/wan-2.6", style: str = "ghibli") -> List[str]:
     """
-    Generates cinematic video clips using OpenRouter (Alibaba Wan 2.6).
+    Generates cinematic video clips using OpenRouter in parallel.
     """
     session_id = str(int(time.time()))
-    video_paths = []
-    for i, prompt in enumerate(prompts):
-        path = _generate_single_video(prompt, i, session_id, video_model)
-        video_paths.append(path)
-        # Small delay to be kind to the API
-        if i < len(prompts) - 1:
-            time.sleep(2)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        from functools import partial
+        worker = partial(_generate_single_video, session_id=session_id, video_model=video_model)
+        video_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
     
     return video_paths
 
