@@ -22,10 +22,11 @@ class RetryLLMWrapper:
             try:
                 return self._llm.invoke(*args, **kwargs)
             except Exception as e:
-                # Handle 429 Rate Limit
-                if "429" in str(e) or "rate_limit" in str(e).lower():
+                error_str = str(e).lower()
+                # Handle 429 Rate Limit, timeouts, and connection drops from OpenRouter
+                if "429" in error_str or "rate_limit" in error_str or "connection" in error_str or "timeout" in error_str:
                     delay = self.base_delay * (2 ** attempt)
-                    print(f"⏳ Rate limited (attempt {attempt+1}/{self.max_retries}). Waiting {delay:.0f}s...")
+                    print(f"⏳ Retryable error (attempt {attempt+1}/{self.max_retries}). Waiting {delay:.0f}s... Error: {str(e)}")
                     time.sleep(delay)
                     last_error = e
                 else:
