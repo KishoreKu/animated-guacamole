@@ -139,7 +139,8 @@ def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, vide
             raise RuntimeError("Timed out waiting for OpenRouter video generation.")
             
         print(f"   📥 Downloading scene {i+1} video from OpenRouter...")
-        v_response = requests.get(video_url, timeout=180)
+        headers = {"Authorization": f"Bearer {api_key}"}
+        v_response = requests.get(video_url, headers=headers, timeout=180)
         v_response.raise_for_status()
         with open(path, "wb") as f:
             f.write(v_response.content)
