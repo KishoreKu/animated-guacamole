@@ -139,12 +139,14 @@ async def generate(request: Request):
     style = data.get("style", "ghibli")
     num_scenes = data.get("numScenes", 5)
     generate_video = data.get("generateVideo", True)
+    video_model = data.get("videoModel", "alibaba/wan-2.6")
     
     initial_state = {
         "topic": topic,
         "style": style,
         "num_scenes": num_scenes,
         "generate_video": generate_video,
+        "video_model": video_model,
         "concept": "",
         "script": "",
         "visuals": "",

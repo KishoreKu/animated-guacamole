@@ -10,6 +10,7 @@ class GraphState(TypedDict):
     style: str # ghibli | cyberpunk | shinkai | disney | spiderverse
     num_scenes: int
     generate_video: bool
+    video_model: str
     concept: str
     script: str
     visuals: str

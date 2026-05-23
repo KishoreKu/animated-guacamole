@@ -117,6 +117,7 @@ export default function GhibliAutomation() {
   const [customTheme, setCustomTheme] = useState("");
   const [numScenes, setNumScenes] = useState(5);
   const [style, setStyle] = useState("ghibli");
+  const [videoModel, setVideoModel] = useState("alibaba/wan-2.6");
   const [running, setRunning] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState({ concept: "idle", script: "idle", visuals: "idle", metadata: "idle", production: "idle" });
   const [agentOutputs, setAgentOutputs] = useState({});
@@ -256,7 +257,7 @@ export default function GhibliAutomation() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ topic, numScenes, generateVideo: true, style }),
+        body: JSON.stringify({ topic, numScenes, generateVideo: true, videoModel, style }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -561,6 +562,25 @@ export default function GhibliAutomation() {
                     }}
                   >
                     {[1, 2, 3, 4, 5].map(n => <option key={n} value={n} style={{ background: "#1a1a1a" }}>{n} Scenes</option>)}
+                  </select>
+                </div>
+                
+                <div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
+                    Video Engine
+                  </div>
+                  <select 
+                    value={videoModel} 
+                    onChange={e => setVideoModel(e.target.value)} 
+                    style={{ 
+                      width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
+                      borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none",
+                      appearance: "none", cursor: "pointer"
+                    }}
+                  >
+                    <option value="alibaba/wan-2.6" style={{ background: "#1a1a1a" }}>Alibaba Wan 2.6</option>
+                    <option value="x-ai/grok-imagine-video" style={{ background: "#1a1a1a" }}>Grok Imagine</option>
+                    <option value="google/veo-3.1-lite" style={{ background: "#1a1a1a" }}>Google Veo 3.1 Lite</option>
                   </select>
                 </div>
               </div>

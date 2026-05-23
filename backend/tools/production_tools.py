@@ -70,11 +70,9 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
-def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
-    """Helper for cinematic video generation using fal.ai (Kling AI) - Superior motion."""
-    import fal_client
-    
-    print(f"🎬 Directing scene {i+1} with Kling AI (High Motion)...")
+def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, video_model: str) -> str:
+    """Helper for cinematic video generation using OpenRouter."""
+    print(f"🎬 Directing scene {i+1} with {video_model} via OpenRouter...")
     path = f"scene_{session_id}_{i}.mp4"
     
     # ENHANCED MOTION PROMPT: Emphasizing movement and storytelling
@@ -85,49 +83,83 @@ def _generate_single_video_fal(prompt: str, i: int, session_id: str) -> str:
         f"SCENE: {prompt}"
     )
     
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY is missing. Video generation requires OpenRouter.")
+        
     try:
-        # Using Kling Standard for better balance of speed and motion
-        handler = fal_client.submit(
-            "alibaba/wan-2.6",
-            arguments={
-                "prompt": full_prompt,
-                "aspect_ratio": "16:9"
-            }
-        )
-        result = handler.get()
-        if result and result.get("video"):
-            video_url = result["video"]["url"]
-            print(f"   📥 Downloading scene {i+1} video from Kling...")
-            v_response = requests.get(video_url, timeout=180)
-            v_response.raise_for_status()
-            with open(path, "wb") as f:
-                f.write(v_response.content)
-            print(f"✅ Scene {i+1} video rendered! ({os.path.getsize(path)} bytes)")
-            return path
-        else:
-            raise RuntimeError("Kling AI returned no video")
+        # Step 1: Submit the video generation job
+        submit_url = "https://openrouter.ai/api/v1/videos"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": video_model,
+            "prompt": full_prompt,
+            "aspect_ratio": "16:9"
+        }
+        
+        response = requests.post(submit_url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        job_data = response.json()
+        
+        polling_url = job_data.get("polling_url")
+        if not polling_url:
+            raise RuntimeError(f"OpenRouter did not return a polling URL: {job_data}")
+            
+        print(f"   ⏳ Job submitted. Polling for completion of scene {i+1}...")
+        
+        # Step 2: Poll until completed
+        max_attempts = 120 # Wait up to 20 minutes (120 * 10s)
+        video_url = None
+        for attempt in range(max_attempts):
+            time.sleep(10)
+            poll_resp = requests.get(polling_url, headers={"Authorization": f"Bearer {api_key}"})
+            poll_resp.raise_for_status()
+            status_data = poll_resp.json()
+            
+            status = status_data.get("status")
+            if status == "completed":
+                # The video URL might be in 'url', 'content_url', or 'video_url' depending on OpenRouter's schema
+                video_url = status_data.get("url") or status_data.get("content_url") or status_data.get("video_url")
+                if "video" in status_data and isinstance(status_data["video"], dict):
+                    video_url = video_url or status_data["video"].get("url")
+                break
+            elif status in ["failed", "error"]:
+                raise RuntimeError(f"OpenRouter video generation failed: {status_data}")
+            
+            if attempt % 6 == 0:
+                print(f"   ⏳ Still rendering scene {i+1} (elapsed: {attempt*10}s)...")
+                
+        if not video_url:
+            raise RuntimeError("Timed out waiting for OpenRouter video generation.")
+            
+        print(f"   📥 Downloading scene {i+1} video from OpenRouter...")
+        v_response = requests.get(video_url, timeout=180)
+        v_response.raise_for_status()
+        with open(path, "wb") as f:
+            f.write(v_response.content)
+        print(f"✅ Scene {i+1} video rendered! ({os.path.getsize(path)} bytes)")
+        return path
     except Exception as e:
-        print(f"❌ Kling AI video error for scene {i+1}: {e}")
+        print(f"❌ OpenRouter video error for scene {i+1}: {e}")
         raise e
 
-def _generate_single_video(prompt: str, i: int, session_id: str) -> str:
-    """Generates a single video clip using fal.ai. (Disabled Google fallback to prevent still images)"""
-    # FORCE FAL.AI FOR VIDEOS
-    if os.getenv("FAL_KEY"):
-        return _generate_single_video_fal(prompt, i, session_id)
-    
-    raise ValueError("FAL_KEY is missing. Video generation requires fal.ai.")
+def _generate_single_video(prompt: str, i: int, session_id: str, video_model: str) -> str:
+    """Helper for video generation using OpenRouter."""
+    if os.getenv("OPENROUTER_API_KEY"):
+        return _generate_single_video_openrouter(prompt, i, session_id, video_model)
+    raise ValueError("OPENROUTER_API_KEY is missing. Video generation requires OpenRouter.")
 
-def generate_video_clips(prompts: List[str], style: str = "ghibli") -> List[str]:
+def generate_video_clips(prompts: List[str], video_model: str = "alibaba/wan-2.6", style: str = "ghibli") -> List[str]:
     """
-    Generates cinematic video clips using fal.ai (Kling).
-    Strictly generates videos - no fallback to still images.
+    Generates cinematic video clips using OpenRouter (Alibaba Wan 2.6).
     """
     session_id = str(int(time.time()))
     video_paths = []
     for i, prompt in enumerate(prompts):
-        # Removed the 'try/except' fallback to still images to ensure we only get videos
-        path = _generate_single_video(prompt, i, session_id)
+        path = _generate_single_video(prompt, i, session_id, video_model)
         video_paths.append(path)
         # Small delay to be kind to the API
         if i < len(prompts) - 1:
