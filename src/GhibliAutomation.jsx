@@ -15,7 +15,7 @@ const THEMES = ["Enchanted Forest", "Seaside Village", "Sky Castle", "Mountain S
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const API_BASE = import.meta.env.VITE_API_URL || 
-  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://ghibli-backend-895727085943.us-central1.run.app');
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://ghibli-backend-226609348101.us-central1.run.app');
 
 const GhibliBackground = () => (
   <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
@@ -318,8 +318,7 @@ export default function GhibliAutomation() {
          throw new Error("Production Agent failed to render the video. Check the logs above for API issues.");
       }
       
-      const isComplete = !generateVideo || 
-                         Boolean(accumulatedState.video_url) || 
+      const isComplete = Boolean(accumulatedState.video_url) || 
                          (accumulatedState.video_urls && accumulatedState.video_urls.length > 0);
 
       if (isComplete) {
@@ -327,13 +326,7 @@ export default function GhibliAutomation() {
          addLog("🎬 Pipeline complete! Your Ghibli video is ready.");
          await sleep(1500);
          setPhase("result");
-         // Default to images tab if video was not generated
-         if (!generateVideo) {
-            setTimeout(() => {
-                const imagesTabBtn = document.getElementById("tab-btn-images");
-                if (imagesTabBtn) imagesTabBtn.click();
-            }, 100);
-         }
+         // generateVideo is always true now, so we default to the video tab
       } else {
          throw new Error("Connection dropped. The server might have timed out during video generation. Please check GCP logs or try a shorter video.");
       }
