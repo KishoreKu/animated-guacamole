@@ -50,7 +50,7 @@ class ProductionAgent(BaseAgent):
                 url = await asyncio.to_thread(
                     upload_to_gcs, 
                     asset_path, 
-                    "ghibli-scenes-prod", 
+                    "ghibli-scenes-prod-2026", 
                     destination_blob_name=f"scenes/{os.path.basename(asset_path)}"
                 )
                 asset_urls.append(url)
