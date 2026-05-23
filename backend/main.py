@@ -189,7 +189,10 @@ async def generate(request: Request):
                 orch = get_orchestrator()
                 accumulated_state = initial_state.copy()
                 async for output in orch.astream(initial_state):
+                    print(f"NODE YIELDED: {list(output.keys())}")
                     for node_name, state_update in output.items():
+                        if "logs" in state_update:
+                            print(f"LOGS: {state_update['logs']}")
                         accumulated_state.update(state_update)
                     await stream_queue.put(f"data: {json.dumps(output)}\n\n")
                 

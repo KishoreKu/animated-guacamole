@@ -64,7 +64,9 @@ class ProductionAgent(BaseAgent):
                 "logs": state["logs"] + [log_msg]
             }
         except Exception as e:
-            return {"logs": state["logs"] + [f"🚨 Production error: {str(e)}"], "status": "error"}
+            error_msg = f"🚨 Production error: {str(e)}"
+            print(error_msg)
+            return {"logs": state["logs"] + [error_msg], "status": "error"}
 
     async def generate_audio_node(self, state: GraphState) -> GraphState:
         """

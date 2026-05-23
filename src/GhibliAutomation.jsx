@@ -318,6 +318,10 @@ export default function GhibliAutomation() {
          throw new Error("Production Agent failed to render the video. Check the logs above for API issues.");
       }
       
+      if (accumulatedState.status === "error") {
+         throw new Error("Pipeline failed internally. Please check the logs above.");
+      }
+
       const isComplete = Boolean(accumulatedState.video_url) || 
                          (accumulatedState.video_urls && accumulatedState.video_urls.length > 0);
 
