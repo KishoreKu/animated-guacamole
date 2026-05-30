@@ -31,9 +31,10 @@ class ProductionAgent(BaseAgent):
             from backend.tools.production_tools import generate_video_clips, generate_images, upload_to_gcs
             
             video_model = state.get("video_model", "alibaba/wan-2.6")
+            video_duration = state.get("video_duration", 8)
             if generate_video:
                 # CINEMATIC VIDEO MODE
-                assets = await asyncio.to_thread(generate_video_clips, prompts, video_model=video_model, style=style)
+                assets = await asyncio.to_thread(generate_video_clips, prompts, video_model=video_model, style=style, video_duration=video_duration)
                 log_msg = f"🎬 {len(assets)} cinematic {style} clips rendered. Moving to final assembly..."
                 status = "processing"
                 key_name = "video_urls"

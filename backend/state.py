@@ -11,6 +11,7 @@ class GraphState(TypedDict):
     num_scenes: int
     generate_video: bool
     video_model: str
+    video_duration: int  # per-clip duration in seconds (e.g. 5, 8, 10)
     concept: str
     script: str
     visuals: str

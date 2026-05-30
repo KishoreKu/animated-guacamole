@@ -115,7 +115,7 @@ export default function GhibliAutomation() {
   const [isRefreshingThemes, setIsRefreshingThemes] = useState(false);
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
-  const [numScenes, setNumScenes] = useState(5);
+  const [videoDuration, setVideoDuration] = useState(8);
   const [style, setStyle] = useState("ghibli");
   const [videoModel, setVideoModel] = useState("alibaba/wan-2.6");
   const [running, setRunning] = useState(false);
@@ -257,7 +257,7 @@ export default function GhibliAutomation() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ topic, numScenes, generateVideo: true, videoModel, style }),
+        body: JSON.stringify({ topic, generateVideo: true, videoModel, style, videoDuration }),
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -445,44 +445,33 @@ export default function GhibliAutomation() {
         {phase === "input" && (
           <div style={{ animation: "fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1)" }}>
             
-            {/* Universe Selection */}
+            {/* Universe Dropdown */}
             <div style={{
               background: "rgba(10, 15, 20, 0.5)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
               border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "24px 40px", marginBottom: 30,
               boxShadow: "0 20px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)",
             }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", fontFamily: "'Inter', sans-serif", fontWeight: 600, marginBottom: 20 }}>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", fontFamily: "'Inter', sans-serif", fontWeight: 600, marginBottom: 14 }}>
                 Choose Your Universe
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-                {[
-                  { id: "ghibli", name: "Ghibli Classic", icon: "⛩️" },
-                  { id: "cyberpunk", name: "Neon Cyberpunk", icon: "🏙️" },
-                  { id: "shinkai", name: "Shinkai Skies", icon: "☄️" },
-                  { id: "disney", name: "Classic Disney", icon: "🏰" },
-                  { id: "spiderverse", name: "Comic Fusion", icon: "🕷️" }
-                ].map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => setStyle(u.id)}
-                    style={{
-                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                      padding: "16px", borderRadius: 16, border: "1px solid", 
-                      transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                      cursor: "pointer",
-                      background: style === u.id ? "rgba(74,255,138,0.15)" : "rgba(255,255,255,0.03)",
-                      borderColor: style === u.id ? "rgba(74,255,138,0.4)" : "rgba(255,255,255,0.1)",
-                      color: style === u.id ? "#fff" : "rgba(255,255,255,0.6)",
-                      boxShadow: style === u.id ? "0 8px 24px rgba(74,255,138,0.2)" : "none",
-                      transform: style === u.id ? "translateY(-2px)" : "none",
-                      fontFamily: "'Inter', sans-serif"
-                    }}
-                  >
-                    <span style={{ fontSize: 28, marginBottom: 8 }}>{u.icon}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{u.name}</span>
-                  </button>
-                ))}
-              </div>
+              <select
+                value={style}
+                onChange={e => setStyle(e.target.value)}
+                style={{
+                  width: "100%", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 16, padding: "14px 20px", color: "#fff", fontSize: 16,
+                  fontFamily: "'Inter', sans-serif", outline: "none", appearance: "none", cursor: "pointer",
+                  transition: "border-color 0.2s"
+                }}
+                onFocus={e => e.target.style.borderColor = "rgba(74,255,138,0.5)"}
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
+              >
+                <option value="ghibli"  style={{ background: "#1a1a1a" }}>⛩️  Ghibli Classic</option>
+                <option value="cyberpunk" style={{ background: "#1a1a1a" }}>🏙️  Neon Cyberpunk</option>
+                <option value="shinkai" style={{ background: "#1a1a1a" }}>☄️  Shinkai Skies</option>
+                <option value="disney"  style={{ background: "#1a1a1a" }}>🏰  Classic Disney</option>
+                <option value="spiderverse" style={{ background: "#1a1a1a" }}>🕷️  Comic Fusion</option>
+              </select>
             </div>
 
             <div style={{
@@ -511,18 +500,23 @@ export default function GhibliAutomation() {
                   {isRefreshingThemes ? "Summoning..." : "Magic Shuffle"}
                 </button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 30 }}>
+              <select
+                value={theme}
+                onChange={e => { setTheme(e.target.value); setCustomTheme(""); }}
+                style={{
+                  width: "100%", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 16, padding: "14px 20px", color: theme ? "#fff" : "rgba(255,255,255,0.4)",
+                  fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none",
+                  appearance: "none", cursor: "pointer", marginBottom: 24, transition: "border-color 0.2s"
+                }}
+                onFocus={e => e.target.style.borderColor = "rgba(74,255,138,0.5)"}
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.15)"}
+              >
+                <option value="" style={{ background: "#1a1a1a", color: "rgba(255,255,255,0.4)" }}>— Select a world —</option>
                 {currentThemes.map(t => (
-                  <button key={t} className={`theme-btn${theme === t ? " selected" : ""}`} onClick={() => { setTheme(t); setCustomTheme(""); }}
-                    style={{
-                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                      color: "rgba(255,255,255,0.8)", borderRadius: 100, padding: "10px 20px",
-                      fontSize: 14, cursor: "pointer", transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)", fontFamily: "'Inter', sans-serif", fontWeight: 500
-                    }}>
-                    {t}
-                  </button>
+                  <option key={t} value={t} style={{ background: "#1a1a1a" }}>{t}</option>
                 ))}
-              </div>
+              </select>
               
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
                 <div style={{ height: 1, flex: 1, background: "rgba(255,255,255,0.1)" }} />
@@ -545,20 +539,23 @@ export default function GhibliAutomation() {
               />
               
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 10 }}>
+                {/* Clip Duration */}
                 <div>
                   <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Inter', sans-serif", fontWeight: 600 }}>
-                    Scene Count
+                    Clip Duration
                   </div>
-                  <select 
-                    value={numScenes} 
-                    onChange={e => setNumScenes(parseInt(e.target.value))} 
-                    style={{ 
-                      width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
+                  <select
+                    value={videoDuration}
+                    onChange={e => setVideoDuration(parseInt(e.target.value))}
+                    style={{
+                      width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)",
                       borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none",
                       appearance: "none", cursor: "pointer"
                     }}
                   >
-                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n} style={{ background: "#1a1a1a" }}>{n} Scenes</option>)}
+                    <option value={5}  style={{ background: "#1a1a1a" }}>5s — Quick Sketch</option>
+                    <option value={8}  style={{ background: "#1a1a1a" }}>8s — Standard</option>
+                    <option value={10} style={{ background: "#1a1a1a" }}>10s — Cinematic</option>
                   </select>
                 </div>
                 
@@ -571,15 +568,41 @@ export default function GhibliAutomation() {
                     onChange={e => setVideoModel(e.target.value)} 
                     style={{ 
                       width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.15)", 
-                      borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none",
+                      borderRadius: 16, padding: "12px 20px", color: "#fff", fontSize: 15, fontFamily: "'Inter', sans-serif", outline: "none",
                       appearance: "none", cursor: "pointer"
                     }}
                   >
-                    <option value="alibaba/wan-2.6" style={{ background: "#1a1a1a" }}>Alibaba Wan 2.6</option>
-                    <option value="x-ai/grok-imagine-video" style={{ background: "#1a1a1a" }}>Grok Imagine</option>
-                    <option value="google/veo-3.1-lite" style={{ background: "#1a1a1a" }}>Google Veo 3.1 Lite</option>
+                    {/* Alibaba Wan */}
+                    <optgroup label="── Alibaba Wan" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="alibaba/wan-2.6" style={{ background: "#1a1a1a" }}>Wan 2.6  (~$0.04/scene)</option>
+                      <option value="alibaba/wan-2.7" style={{ background: "#1a1a1a" }}>Wan 2.7  (~$0.05/scene)</option>
+                    </optgroup>
+                    {/* Google Veo */}
+                    <optgroup label="── Google Veo" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="google/veo-3.1-lite" style={{ background: "#1a1a1a" }}>Veo 3.1 Lite  (~$0.10/scene)</option>
+                      <option value="google/veo-3.1-fast" style={{ background: "#1a1a1a" }}>Veo 3.1 Fast  (~$0.30/scene)</option>
+                      <option value="google/veo-3.1" style={{ background: "#1a1a1a" }}>Veo 3.1  (~$0.75/scene) ⭐</option>
+                    </optgroup>
+                    {/* OpenAI Sora */}
+                    <optgroup label="── OpenAI" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="openai/sora-2-pro" style={{ background: "#1a1a1a" }}>Sora 2 Pro  (~$1.50/scene) 💎</option>
+                    </optgroup>
+                    {/* Seedance */}
+                    <optgroup label="── Seedance" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="seedance/seedance-1.5" style={{ background: "#1a1a1a" }}>Seedance 1.5  (~$0.08/scene)</option>
+                      <option value="seedance/seedance-2.0" style={{ background: "#1a1a1a" }}>Seedance 2.0  (~$0.12/scene)</option>
+                    </optgroup>
+                    {/* MiniMax */}
+                    <optgroup label="── MiniMax" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="minimax/hailuo-2.3" style={{ background: "#1a1a1a" }}>Hailuo 2.3  (~$0.07/scene)</option>
+                    </optgroup>
+                    {/* xAI */}
+                    <optgroup label="── xAI" style={{ background: "#111", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                      <option value="x-ai/grok-imagine-video" style={{ background: "#1a1a1a" }}>Grok Imagine Video  (~$0.20/scene)</option>
+                    </optgroup>
                   </select>
                 </div>
+
               </div>
             </div>
 
@@ -683,11 +706,18 @@ export default function GhibliAutomation() {
 }
 
 function GalleryPanel({ data, loading, onReset, onViewScenes, handleDownload }) {
+  // Only show generations that have at least one video
+  const withFinalVideo = data.filter(item => item.video_url && item.video_url !== "ERROR");
+  const withSceneClips = data.filter(item =>
+    !item.video_url &&
+    ((item.video_urls && item.video_urls.length > 0) || (item.scene_urls && item.scene_urls.length > 0))
+  );
+
   return (
     <div style={{ animation: "fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 30 }}>
         <div style={{ fontSize: "2rem", color: "#fff", fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>
-          Public Archive
+          🎞️ Video Archive
         </div>
         <button onClick={onReset} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", padding: "10px 20px", borderRadius: 12, cursor: "pointer", fontSize: 14 }}>
           ← Back to Studio
@@ -699,37 +729,81 @@ function GalleryPanel({ data, loading, onReset, onViewScenes, handleDownload }) 
           Loading the vault...
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
-          {data.map((item, idx) => (
-            <div key={idx} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 20, display: "flex", flexDirection: "column" }}>
-              <div style={{ position: "relative", marginBottom: 16 }}>
-                <img src={item.image_urls?.[0]} style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 16 }} />
-                <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: 8, fontSize: 10, color: "#fff", backdropFilter: "blur(4px)", textTransform: "uppercase", letterSpacing: 1 }}>
-                  {item.source === "reddit" ? "🤖 Automated" : "👤 Manual"}
-                </div>
+        <>
+          {/* SECTION A — Final Merged Videos */}
+          <div style={{ marginBottom: 50 }}>
+            <div style={{ fontSize: 13, color: "rgba(74,255,138,0.8)", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700, fontFamily: "'Inter', sans-serif", marginBottom: 20 }}>
+              ✦ Final Masterpieces
+            </div>
+            {withFinalVideo.length === 0 ? (
+              <div style={{ padding: "40px 0", color: "rgba(255,255,255,0.3)", fontFamily: "'Inter', sans-serif", textAlign: "center" }}>
+                No completed videos yet.
               </div>
-              <div style={{ fontSize: 18, color: "#fff", fontWeight: 600, marginBottom: 8, fontFamily: "'Outfit', sans-serif" }}>
-                {item.topic}
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
+                {withFinalVideo.map((item, idx) => (
+                  <div key={idx} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(74,255,138,0.15)", borderRadius: 24, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    <video
+                      autoPlay loop muted playsInline
+                      style={{ width: "100%", height: 200, objectFit: "cover", display: "block" }}
+                    >
+                      <source src={item.video_url} type="video/mp4" />
+                    </video>
+                    <div style={{ padding: "16px 20px", flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ fontSize: 17, color: "#fff", fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{item.topic}</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: "'Inter', sans-serif" }}>
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
+                      </div>
+                      <button
+                        onClick={() => handleDownload(item.video_url, `ghibli_${item.topic?.replace(/\s/g, "_")}.mp4`)}
+                        style={{ marginTop: "auto", background: "linear-gradient(135deg, #4ab8ff, #4aff8a)", border: "none", color: "#000", padding: "10px", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        ⬇ Download MP4
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16, lineHeight: 1.4, flex: 1 }}>
-                {item.concept.slice(0, 100)}...
+            )}
+          </div>
+
+          {/* SECTION B — Pre-Merged Scene Clips */}
+          {withSceneClips.length > 0 && (
+            <div>
+              <div style={{ fontSize: 13, color: "rgba(74,184,255,0.8)", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700, fontFamily: "'Inter', sans-serif", marginBottom: 20 }}>
+                🎬 Scene Clips (Pre-Merge)
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                {item.video_url && (
-                  <button 
-                    onClick={() => handleDownload(item.video_url, `ghibli_video_${idx}.mp4`)}
-                    style={{ flex: 1, textAlign: "center", background: "linear-gradient(135deg, #4ab8ff, #4aff8a)", border: "none", color: "#000", padding: "10px", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Download MP4
-                  </button>
-                )}
-                <button onClick={() => onViewScenes(item)} style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", padding: "10px", borderRadius: 12, fontSize: 14, cursor: "pointer" }}>
-                  View Scenes
-                </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
+                {withSceneClips.map((item, idx) => {
+                  const clips = item.video_urls?.length > 0 ? item.video_urls : (item.scene_urls || []);
+                  return (
+                    <div key={idx} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(74,184,255,0.1)", borderRadius: 20, padding: "20px 24px" }}>
+                      <div style={{ fontSize: 16, color: "#fff", fontWeight: 600, fontFamily: "'Outfit', sans-serif", marginBottom: 14 }}>{item.topic}</div>
+                      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+                        {clips.map((url, ci) => (
+                          <div key={ci} style={{ flex: "0 0 220px" }}>
+                            <video
+                              autoPlay loop muted playsInline
+                              style={{ width: 220, height: 130, objectFit: "cover", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", display: "block" }}
+                            >
+                              <source src={url} type="video/mp4" />
+                            </video>
+                            <button
+                              onClick={() => handleDownload(url, `clip_${item.topic}_${ci + 1}.mp4`)}
+                              style={{ width: "100%", marginTop: 6, background: "rgba(74,184,255,0.15)", border: "1px solid rgba(74,184,255,0.3)", color: "#4ab8ff", padding: "6px", borderRadius: 8, fontSize: 12, cursor: "pointer" }}
+                            >
+                              ⬇ Clip {ci + 1}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

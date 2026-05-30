@@ -137,9 +137,10 @@ async def generate(request: Request):
     data = await request.json()
     topic = data.get("topic", "Enchanted Forest")
     style = data.get("style", "ghibli")
-    num_scenes = data.get("numScenes", 5)
+    num_scenes = 3  # Fixed: balanced cost vs quality
     generate_video = data.get("generateVideo", True)
     video_model = data.get("videoModel", "alibaba/wan-2.6")
+    video_duration = int(data.get("videoDuration", 8))  # per-clip seconds
     
     initial_state = {
         "topic": topic,
@@ -147,6 +148,7 @@ async def generate(request: Request):
         "num_scenes": num_scenes,
         "generate_video": generate_video,
         "video_model": video_model,
+        "video_duration": video_duration,
         "concept": "",
         "script": "",
         "visuals": "",

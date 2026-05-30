@@ -70,7 +70,7 @@ def generate_images(prompts: List[str]) -> List[str]:
     
     return image_paths
 
-def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, video_model: str) -> str:
+def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, video_model: str, video_duration: int = 8) -> str:
     """Helper for cinematic video generation using OpenRouter."""
     print(f"🎬 Directing scene {i+1} with {video_model} via OpenRouter...")
     path = f"scene_{session_id}_{i}.mp4"
@@ -97,7 +97,8 @@ def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, vide
         payload = {
             "model": video_model,
             "prompt": full_prompt,
-            "aspect_ratio": "16:9"
+            "aspect_ratio": "16:9",
+            "duration": video_duration
         }
         
         response = requests.post(submit_url, headers=headers, json=payload, timeout=60)
@@ -150,20 +151,20 @@ def _generate_single_video_openrouter(prompt: str, i: int, session_id: str, vide
         print(f"❌ OpenRouter video error for scene {i+1}: {e}")
         raise e
 
-def _generate_single_video(prompt: str, i: int, session_id: str, video_model: str) -> str:
+def _generate_single_video(prompt: str, i: int, session_id: str, video_model: str, video_duration: int = 8) -> str:
     """Helper for video generation using OpenRouter."""
     if os.getenv("OPENROUTER_API_KEY"):
-        return _generate_single_video_openrouter(prompt, i, session_id, video_model)
+        return _generate_single_video_openrouter(prompt, i, session_id, video_model, video_duration)
     raise ValueError("OPENROUTER_API_KEY is missing. Video generation requires OpenRouter.")
 
-def generate_video_clips(prompts: List[str], video_model: str = "alibaba/wan-2.6", style: str = "ghibli") -> List[str]:
+def generate_video_clips(prompts: List[str], video_model: str = "alibaba/wan-2.6", style: str = "ghibli", video_duration: int = 8) -> List[str]:
     """
     Generates cinematic video clips using OpenRouter in parallel.
     """
     session_id = str(int(time.time()))
     with ThreadPoolExecutor(max_workers=5) as executor:
         from functools import partial
-        worker = partial(_generate_single_video, session_id=session_id, video_model=video_model)
+        worker = partial(_generate_single_video, session_id=session_id, video_model=video_model, video_duration=video_duration)
         video_paths = list(executor.map(lambda x: worker(x[1], x[0]), enumerate(prompts)))
     
     return video_paths
